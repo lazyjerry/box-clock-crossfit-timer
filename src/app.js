@@ -39,6 +39,7 @@ const PRESETS = {
 };
 
 let audioContext = null;
+let audioOutput = null;
 let wakeLock = null;
 let currentPlan = null;
 let currentSnapshot = null;
@@ -46,7 +47,7 @@ let currentMode = 'amrap';
 let isPaused = false;
 let isRunning = false;
 let soundEnabled = true;
-let soundVolume = 0.7;
+let soundVolume = 0.5;
 let previousPhaseIndex = -1;
 let previousCueSecond = null;
 let installPrompt = null;
@@ -109,11 +110,31 @@ function updateSummary() {
 }
 
 async function unlockAudio() {
-  if (!audioContext) audioContext = new AudioContext();
+  if (!audioContext) {
+    audioContext = new AudioContext();
+    audioOutput = audioContext.createGain();
+    const compressor = audioContext.createDynamicsCompressor();
+    compressor.threshold.value = -10;
+    compressor.knee.value = 18;
+    compressor.ratio.value = 12;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.25;
+    audioOutput.connect(compressor).connect(audioContext.destination);
+    applySoundVolume();
+  }
   if (audioContext.state === 'suspended') await audioContext.resume();
 }
 
-function tone(frequency, duration = 0.12, delay = 0, gain = 0.18, force = false) {
+function soundOutputGain() {
+  return soundVolume * 2;
+}
+
+function applySoundVolume() {
+  if (!audioContext || !audioOutput) return;
+  audioOutput.gain.setTargetAtTime(soundOutputGain(), audioContext.currentTime, 0.01);
+}
+
+function tone(frequency, duration = 0.12, delay = 0, gain = 0.32, force = false) {
   if ((!soundEnabled && !force) || !audioContext) return;
   const start = audioContext.currentTime + delay;
   const oscillator = audioContext.createOscillator();
@@ -121,9 +142,9 @@ function tone(frequency, duration = 0.12, delay = 0, gain = 0.18, force = false)
   oscillator.type = 'square';
   oscillator.frequency.setValueAtTime(frequency, start);
   volume.gain.setValueAtTime(0.0001, start);
-  volume.gain.exponentialRampToValueAtTime(Math.min(gain * soundVolume, 0.28), start + 0.01);
+  volume.gain.exponentialRampToValueAtTime(gain, start + 0.01);
   volume.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  oscillator.connect(volume).connect(audioContext.destination);
+  oscillator.connect(volume).connect(audioOutput || audioContext.destination);
   oscillator.start(start);
   oscillator.stop(start + duration + 0.02);
 }
@@ -138,15 +159,23 @@ function playComplete() {
 }
 
 function playSoundPreview() {
-  tone(523, 0.12, 0, 0.16, true);
-  tone(659, 0.12, 0.16, 0.16, true);
-  tone(784, 0.24, 0.32, 0.18, true);
+  tone(523, 0.12, 0, 0.3, true);
+  tone(659, 0.12, 0.16, 0.3, true);
+  tone(784, 0.24, 0.32, 0.34, true);
 }
 
 function updateSoundVolume() {
   soundVolume = Number($('#sound-volume').value) / 100;
+  applySoundVolume();
   $('#sound-volume-value').value = `${Math.round(soundVolume * 100)}%`;
   $('#sound-volume-value').textContent = `${Math.round(soundVolume * 100)}%`;
+  const percent = Math.round(soundVolume * 100);
+  const changeDb = Math.round(20 * Math.log10(soundOutputGain()) * 10) / 10;
+  $('#sound-volume-description').textContent = percent === 50
+    ? '50%：符合目前裝置音量'
+    : percent < 50
+      ? `${percent}%：低於目前裝置音量`
+      : `${percent}%：提高 +${changeDb} dB，裝置最大音量仍由系統控制`;
 }
 
 function updateSoundToggleLabel() {

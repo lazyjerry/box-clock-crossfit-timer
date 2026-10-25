@@ -99,8 +99,9 @@
                 </label>
               </div>
               <div class="volume-row">
-                <div class="volume-heading"><label for="sound-volume">提示音量</label><output id="sound-volume-value" for="sound-volume">70%</output></div>
-                <input id="sound-volume" type="range" min="20" max="100" step="5" value="70" aria-describedby="sound-test-status">
+                <div class="volume-heading"><label for="sound-volume">提示音量</label><output id="sound-volume-value" for="sound-volume">50%</output></div>
+                <input id="sound-volume" type="range" min="20" max="100" step="5" value="50" aria-describedby="sound-volume-description sound-test-status">
+                <p id="sound-volume-description" class="volume-note">50%：符合目前裝置音量</p>
               </div>
               <div class="sound-test-row">
                 <button id="test-sound-button" class="test-sound-button" type="button">播放測試音</button>

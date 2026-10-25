@@ -1,4 +1,4 @@
-const CACHE_NAME = 'box-clock-v4';
+const CACHE_NAME = 'box-clock-v5';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './timer-core.mjs', './timer-worker.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (event) => {
