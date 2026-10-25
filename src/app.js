@@ -1,6 +1,7 @@
-import { createPlan, displaySeconds, formatClock } from './timer-core.mjs';
+import { createPlan, displaySeconds, formatClock, shareText, snapshotAt, summarizeRun } from './timer-core.mjs';
+import { restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
 
-const $ = (selector, root = document) => root.querySelector(selector);
+const $ =(selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const form = $('#timer-form');
 const setupView = $('#setup-view');
@@ -9,11 +10,48 @@ const timerStage = $('.timer-stage');
 const worker = new Worker('./timer-worker.js', { type: 'module' });
 
 const MODE_META = {
-  amrap: { label: 'AMRAP', description: '固定倒數，在時間內完成最多輪數或次數。' },
-  emom: { label: 'EMOM', description: '每個間隔開始新一輪，剩餘時間就是該輪休息。' },
-  tabata: { label: 'TABATA', description: '動作與休息交替，預設為經典 20／10 秒 × 8 輪。' },
-  fortime: { label: 'FOR TIME', description: '由零開始正數計時；做完按「完成」，或到時間上限自動結束。' }
+  amrap: {
+    label: 'AMRAP',
+    description: '固定倒數，在時間內完成最多輪數或次數。',
+    example: {
+      setting: '訓練時間 20 分鐘（經典 Cindy）',
+      workout: ['引體向上 5 下', '伏地挺身 10 下', '空氣深蹲 15 下'],
+      how: '依序做完三個動作算一輪，循環到時間結束；記錄完成輪數加最後一輪的次數，例如 15 輪＋8 下。'
+    }
+  },
+  emom: {
+    label: 'EMOM',
+    description: '每個間隔開始新一輪，剩餘時間就是該輪休息。',
+    example: {
+      setting: '總輪數 10 輪 · 每輪間隔 60 秒（共 10 分鐘）',
+      workout: ['每分鐘一開始：壺鈴擺盪 15 下', '做完後剩下的秒數就是休息'],
+      how: '每 60 秒自動進入下一輪並響提示音；如果 60 秒內做不完，下一輪就減少次數或降低重量。'
+    }
+  },
+  tabata: {
+    label: 'TABATA',
+    description: '動作與休息交替，預設為經典 20／10 秒 × 8 輪。',
+    example: {
+      setting: '總輪數 8 輪 · 動作 20 秒／休息 10 秒（共 4 分鐘）',
+      workout: ['動作：空氣深蹲', '每輪 20 秒內做越多下越好'],
+      how: '計時器自動在動作與休息之間切換並響提示音；記下每輪次數，以最少的一輪作為成績。'
+    }
+  },
+  fortime: {
+    label: 'FOR TIME',
+    description: '由零開始正數計時；做完按「完成」，或到時間上限自動結束。',
+    example: {
+      setting: '時間上限 10 分鐘（經典 Fran）',
+      workout: ['第 1 回合：火箭推 21 下＋引體向上 21 下', '第 2 回合：各 15 下', '第 3 回合：各 9 下'],
+      how: '按開始後由 00:00 正數計時，全部做完立刻按「完成」，畫面上的時間就是成績；10 分鐘到會自動結束。'
+    }
+  }
 };
+
+const STORAGE_KEY = 'box-clock-settings';
+const RUN_STORAGE_KEY = 'box-clock-run';
+const SHARED_FIELDS = '.start-panel input, .start-panel select, #share-exercise';
+const MODE_FIELDS = 'input, select';
 
 const PRESETS = {
   amrap: [
@@ -42,15 +80,23 @@ let audioContext = null;
 let audioOutput = null;
 let wakeLock = null;
 let currentPlan = null;
+let currentConfig = null;
 let currentSnapshot = null;
-let currentMode = 'amrap';
+let currentMode = 'fortime';
 let isPaused = false;
 let isRunning = false;
+let isFinished = false;
+let runId = 0;
 let soundEnabled = true;
 let soundVolume = 0.5;
 let previousPhaseIndex = -1;
 let previousCueSecond = null;
 let installPrompt = null;
+let wakeStatus = { text: '螢幕常亮：準備中', failed: false };
+let wakeWarned = false;
+let wallClockHandle = null;
+let currentSummary = null;
+let shareContent = null;
 
 function numberValue(name) {
   return Number(form.elements[name].value);
@@ -88,6 +134,7 @@ function updateSetup() {
   currentMode = form.elements.mode.value;
   $$('[data-mode]').forEach((panel) => { panel.hidden = panel.dataset.mode !== currentMode; });
   $('#mode-description').textContent = MODE_META[currentMode].description;
+  $('#mode-help-button').setAttribute('aria-label', `查看 ${MODE_META[currentMode].label} 範例`);
   const presetContainer = $('#preset-buttons');
   presetContainer.replaceChildren(...PRESETS[currentMode].map((preset) => {
     const button = document.createElement('button');
@@ -97,6 +144,7 @@ function updateSetup() {
     button.addEventListener('click', () => {
       Object.entries(preset.values).forEach(([name, value]) => { form.elements[name].value = value; });
       updateSummary();
+      saveSettings();
     });
     return button;
   }));
@@ -107,6 +155,62 @@ function updateSummary() {
   const config = readConfig();
   $('#workout-summary').innerHTML = summaryText(config);
   $('#form-error').textContent = '';
+}
+
+function collectFields(fields) {
+  return Object.fromEntries(fields.map((field) => [field.id, field.type === 'checkbox' ? field.checked : field.value]));
+}
+
+function saveSettings() {
+  const settings = { shared: collectFields($$(SHARED_FIELDS)), modes: {} };
+  $$('[data-mode]').forEach((panel) => { settings.modes[panel.dataset.mode] = collectFields($$(MODE_FIELDS, panel)); });
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch {}
+}
+
+function restoreFields(fields, values) {
+  if (!values || typeof values !== 'object') return;
+  fields.forEach((field) => {
+    if (!(field.id in values)) return;
+    if (field.type === 'checkbox') {
+      field.checked = values[field.id] === true;
+      return;
+    }
+    const stored = String(values[field.id]);
+    field.value = stored;
+    if (field.tagName === 'SELECT') {
+      if (field.selectedIndex < 0) field.value = $('option[selected]', field).value;
+    } else if (field.value !== stored || !field.checkValidity()) field.value = field.defaultValue;
+  });
+}
+
+function loadSettings() {
+  let settings = null;
+  try {
+    settings = JSON.parse(localStorage.getItem(STORAGE_KEY));
+  } catch {}
+  if (!settings || typeof settings !== 'object') return;
+  restoreFields($$(SHARED_FIELDS), settings.shared);
+  $$('[data-mode]').forEach((panel) => restoreFields($$(MODE_FIELDS, panel), settings.modes?.[panel.dataset.mode]));
+}
+
+function openModeHelp() {
+  const { label, example } = MODE_META[currentMode];
+  const setting = document.createElement('p');
+  setting.className = 'help-setting';
+  setting.textContent = `計時設定：${example.setting}`;
+  const workout = document.createElement('ul');
+  workout.replaceChildren(...example.workout.map((item) => {
+    const line = document.createElement('li');
+    line.textContent = item;
+    return line;
+  }));
+  const how = document.createElement('p');
+  how.textContent = example.how;
+  $('#mode-help-title').textContent = `${label} 範例`;
+  $('#mode-help-body').replaceChildren(setting, workout, how);
+  $('#mode-help-dialog').showModal();
 }
 
 async function unlockAudio() {
@@ -122,7 +226,7 @@ async function unlockAudio() {
     audioOutput.connect(compressor).connect(audioContext.destination);
     applySoundVolume();
   }
-  if (audioContext.state === 'suspended') await audioContext.resume();
+  return resumeAudio(audioContext);
 }
 
 function soundOutputGain() {
@@ -164,18 +268,29 @@ function playSoundPreview() {
   tone(784, 0.24, 0.32, 0.34, true);
 }
 
+function normalizeSoundVolume() {
+  const field = $('#sound-volume');
+  const value = Number(field.value);
+  const step = Number(field.step);
+  field.value = field.value === '' || !Number.isFinite(value)
+    ? field.defaultValue
+    : Math.min(Number(field.max), Math.max(Number(field.min), Math.round(value / step) * step));
+}
+
 function updateSoundVolume() {
-  soundVolume = Number($('#sound-volume').value) / 100;
+  const field = $('#sound-volume');
+  if (field.value === '' || !field.checkValidity()) return;
+  soundVolume = Number(field.value) / 100;
   applySoundVolume();
-  $('#sound-volume-value').value = `${Math.round(soundVolume * 100)}%`;
-  $('#sound-volume-value').textContent = `${Math.round(soundVolume * 100)}%`;
+  $('#sound-volume-down').disabled = Number(field.value) <= Number(field.min);
+  $('#sound-volume-up').disabled = Number(field.value) >= Number(field.max);
   const percent = Math.round(soundVolume * 100);
   const changeDb = Math.round(20 * Math.log10(soundOutputGain()) * 10) / 10;
   $('#sound-volume-description').textContent = percent === 50
-    ? '50%：符合目前裝置音量'
+    ? '50%：符合裝置音量'
     : percent < 50
-      ? `${percent}%：低於目前裝置音量`
-      : `${percent}%：提高 +${changeDb} dB，裝置最大音量仍由系統控制`;
+      ? `${percent}%：低於裝置音量`
+      : `${percent}%：+${changeDb} dB，上限由系統控制`;
 }
 
 function updateSoundToggleLabel() {
@@ -184,21 +299,51 @@ function updateSoundToggleLabel() {
 }
 
 async function requestWakeLock() {
-  const status = $('#wake-status');
   if (!('wakeLock' in navigator)) {
-    status.textContent = '螢幕常亮：此瀏覽器不支援';
+    setWakeStatus('螢幕常亮：此瀏覽器不支援', true);
     return;
   }
   try {
     wakeLock = await navigator.wakeLock.request('screen');
-    status.textContent = '螢幕常亮：已啟用';
+    setWakeStatus('螢幕常亮：已啟用');
     wakeLock.addEventListener('release', () => {
       wakeLock = null;
-      if (isRunning && document.visibilityState === 'visible') status.textContent = '螢幕常亮：已釋放';
+      if (!timerView.hidden && document.visibilityState === 'visible') setWakeStatus('螢幕常亮：已釋放');
     });
   } catch {
-    status.textContent = '螢幕常亮：無法啟用';
+    setWakeStatus('螢幕常亮：無法啟用', true);
   }
+}
+
+function setWakeStatus(text, failed = false) {
+  wakeStatus = { text, failed };
+  if (wallClockHandle === null) renderWakeStatus();
+  if (failed && !wakeWarned && !timerView.hidden) {
+    wakeWarned = true;
+    $('#wake-dialog').showModal();
+  }
+}
+
+function renderWakeStatus() {
+  $('#wake-status').textContent = wakeStatus.text;
+  $('#wake-status').classList.toggle('wake-warning', wakeStatus.failed);
+}
+
+function startWallClock() {
+  if (wallClockHandle !== null) return;
+  const tick = () => {
+    const now = new Date();
+    $('#wake-status').textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  };
+  $('#wake-status').classList.remove('wake-warning');
+  tick();
+  wallClockHandle = setInterval(tick, 1000);
+}
+
+function stopWallClock() {
+  if (wallClockHandle !== null) clearInterval(wallClockHandle);
+  wallClockHandle = null;
+  renderWakeStatus();
 }
 
 async function releaseWakeLock() {
@@ -229,7 +374,7 @@ function renderSnapshot(snapshot) {
 
   const next = phaseAfter(phase.index);
   $('#next-display').textContent = next ? `接下來 · ${next.label}${next.totalRounds > 1 ? ` ${next.round}` : ''}` : (isCountup ? '時間上限到會自動結束' : '最後一段');
-  $('#finish-button').hidden = currentMode !== 'fortime' || phase.kind === 'prepare';
+  $('#finish-button').hidden = currentMode !== 'fortime' || phase.kind === 'prepare' || !isRunning;
 
   const cueSecond = displaySeconds(snapshot.phaseRemainingMs);
   if (phase.index !== previousPhaseIndex) {
@@ -238,7 +383,7 @@ function renderSnapshot(snapshot) {
     previousPhaseIndex = phase.index;
     previousCueSecond = null;
   }
-  if (!isPaused && cueSecond <= 3 && cueSecond > 0 && cueSecond !== previousCueSecond) {
+  if (isRunning && !isPaused && cueSecond <= 3 && cueSecond > 0 && cueSecond !== previousCueSecond) {
     tone(cueSecond === 1 ? 920 : 620, 0.13);
     previousCueSecond = cueSecond;
   }
@@ -257,15 +402,16 @@ async function startWorkout(event) {
   updateSoundVolume();
   if (soundEnabled) await unlockAudio();
   currentPlan = createPlan(config);
+  currentConfig = config;
   currentMode = config.mode;
-  previousPhaseIndex = -1;
-  previousCueSecond = null;
-  isPaused = false;
-  isRunning = true;
+  showTimerView();
+  resetTimer();
+  wakeWarned = false;
+  await requestWakeLock();
+}
+
+function showTimerView() {
   $('#timer-mode').textContent = MODE_META[currentMode].label;
-  $('#sound-button').textContent = soundEnabled ? '聲音 ON' : '聲音 OFF';
-  $('#sound-button').setAttribute('aria-pressed', String(!soundEnabled));
-  $('#sound-button').setAttribute('aria-label', soundEnabled ? '關閉聲音' : '開啟聲音');
   setupView.hidden = true;
   $('.hero').hidden = true;
   $('.site-header').hidden = true;
@@ -273,14 +419,14 @@ async function startWorkout(event) {
   $('footer').hidden = true;
   timerView.hidden = false;
   document.body.classList.add('timer-running');
-  await requestWakeLock();
-  worker.postMessage({ type: 'start', config });
 }
 
-async function leaveTimer(completed = false) {
+async function leaveTimer() {
   if (isRunning) worker.postMessage({ type: 'stop' });
   isRunning = false;
   isPaused = false;
+  clearRun();
+  stopWallClock();
   await releaseWakeLock();
   timerView.hidden = true;
   setupView.hidden = false;
@@ -289,70 +435,266 @@ async function leaveTimer(completed = false) {
   $('.feature-strip').hidden = false;
   $('footer').hidden = false;
   document.body.classList.remove('timer-running');
-  $('#pause-button').textContent = '暫停';
-  if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
-  if (completed) {
-    $('#form-error').textContent = '訓練完成。';
-    $('#form-error').style.color = 'var(--green)';
-  } else {
-    $('#form-error').textContent = '';
-    $('#form-error').style.color = '';
-  }
+  $('#start-button').textContent = '開始';
+  $('#form-error').textContent = '';
   setupView.scrollIntoView({ block: 'start' });
 }
 
-worker.addEventListener('message', ({ data }) => {
-  if (data.snapshot) renderSnapshot(data.snapshot);
-  if (data.type === 'complete' && isRunning) {
-    playComplete();
-    $('#timer-live').textContent = '訓練完成';
-    leaveTimer(true);
+function resetTimer() {
+  if (isRunning) worker.postMessage({ type: 'stop' });
+  isRunning = false;
+  isPaused = false;
+  isFinished = false;
+  currentSummary = null;
+  $('#share-button').hidden = true;
+  stopWallClock();
+  clearRun();
+  previousPhaseIndex = -1;
+  previousCueSecond = null;
+  $('#start-button').textContent = '開始';
+  renderSnapshot(snapshotAt(currentPlan, 0));
+}
+
+function toggleTimer() {
+  if (isFinished) resetTimer();
+  if (!isRunning) {
+    if (soundEnabled) unlockAudio().catch(() => {});
+    isRunning = true;
+    isPaused = false;
+    runId += 1;
+    worker.postMessage({ type: 'start', config: currentConfig, runId });
+    startWallClock();
+    $('#start-button').textContent = '暫停';
+    $('#timer-live').textContent = '計時開始';
+    return;
   }
+  isPaused = !isPaused;
+  if (!isPaused && soundEnabled) unlockAudio().catch(() => {});
+  worker.postMessage({ type: isPaused ? 'pause' : 'resume' });
+  $('#start-button').textContent = isPaused ? '繼續' : '暫停';
+  $('#timer-live').textContent = isPaused ? '計時已暫停' : '計時繼續';
+}
+
+function finishWorkout() {
+  playComplete();
+  if (isRunning) worker.postMessage({ type: 'stop' });
+  isRunning = false;
+  isPaused = false;
+  isFinished = true;
+  clearRun();
+  currentSummary = summarizeRun(currentPlan, currentSnapshot.elapsedMs);
+  const [headline, ...details] = currentSummary.lines;
+  $('#timer-clock').textContent = currentSummary.time;
+  $('#timer-phase').textContent = '完成';
+  timerStage.dataset.phase = 'done';
+  $('#progress-bar').style.transform = 'scaleX(1)';
+  $('#round-display').textContent = headline;
+  $('#next-display').textContent = details.join(' · ') || '按「分享」留下這次成績';
+  $('#finish-button').hidden = true;
+  $('#share-button').hidden = false;
+  $('#start-button').textContent = '重新開始';
+  $('#timer-live').textContent = `訓練完成，${currentSummary.lines.join('，')}`;
+}
+
+function openShare() {
+  $('#share-status').textContent = '';
+  $('#share-dialog').showModal();
+}
+
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+}
+
+async function renderShareImage(exercise) {
+  const size = 1080;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d');
+  const sans = 'system-ui,-apple-system,"PingFang TC","Noto Sans TC",sans-serif';
+  const mono = 'ui-monospace,SFMono-Regular,Menlo,monospace';
+  const line = (text, y, fontSize, family, color = '#fff') => {
+    let shown = fontSize;
+    context.font = `900 ${shown}px ${family}`;
+    while (context.measureText(text).width > size - 120 && shown > 20) {
+      shown -= 2;
+      context.font = `900 ${shown}px ${family}`;
+    }
+    context.lineWidth = shown * 0.16;
+    context.shadowColor = 'rgba(0,0,0,.45)';
+    context.shadowBlur = shown * 0.3;
+    context.strokeStyle = 'rgba(23,30,52,.92)';
+    context.strokeText(text, size / 2, y);
+    context.shadowColor = 'transparent';
+    context.fillStyle = color;
+    context.fillText(text, size / 2, y);
+  };
+  const logo = await loadImage('./icon.svg');
+  if (logo) context.drawImage(logo, (size - 180) / 2, 90, 180, 180);
+  context.textAlign = 'center';
+  context.lineJoin = 'round';
+  line(`我剛做了『${exercise}』！`, 400, 76, sans);
+  line(currentSummary.time, 640, 230, mono);
+  line(currentSummary.label, 740, 58, mono, '#ed735f');
+  currentSummary.lines.forEach((text, index) => line(text, 830 + index * 70, 44, sans));
+  line('BOX CLOCK', 1020, 30, mono, '#e4e6ee');
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
+async function showSharePreview(event) {
+  event.preventDefault();
+  const exercise = $('#share-exercise').value.trim();
+  if (!exercise || !currentSummary) return;
+  saveSettings();
+  const blob = await renderShareImage(exercise);
+  if (shareContent) URL.revokeObjectURL(shareContent.url);
+  shareContent = { text: shareText(currentSummary, exercise), url: URL.createObjectURL(blob) };
+  $('#share-preview-image').src = shareContent.url;
+  $('#share-preview-text').textContent = shareContent.text;
+  $('#share-dialog').close();
+  $('#share-preview-dialog').showModal();
+}
+
+async function copyResultText() {
+  try {
+    await navigator.clipboard.writeText(shareContent.text);
+    $('#share-status').textContent = '已複製文字，可以貼到任何地方';
+  } catch {
+    $('#share-status').textContent = '無法複製，請長按上方文字手動複製';
+  }
+}
+
+async function shareResultText() {
+  if (!navigator.share) {
+    $('#share-status').textContent = '此裝置不支援內建分享，請改用「複製文字」';
+    return;
+  }
+  try {
+    await navigator.share({ text: shareContent.text });
+  } catch (error) {
+    if (error.name !== 'AbortError') $('#share-status').textContent = '無法開啟分享，請改用「複製文字」';
+  }
+}
+
+function downloadImage() {
+  const link = document.createElement('a');
+  link.href = shareContent.url;
+  link.download = 'box-clock.png';
+  link.click();
+  $('#share-status').textContent = '已下載透明背景浮水印';
+}
+
+function saveRun() {
+  if (!currentConfig || !currentSnapshot) return;
+  try {
+    localStorage.setItem(RUN_STORAGE_KEY, serializeRun({ config: currentConfig, elapsedMs: currentSnapshot.elapsedMs }));
+  } catch {}
+}
+
+function clearRun() {
+  try {
+    localStorage.removeItem(RUN_STORAGE_KEY);
+  } catch {}
+}
+
+function pauseForBackground() {
+  if (!isRunning) return;
+  if (!isPaused) toggleTimer();
+  saveRun();
+}
+
+function restoreSavedRun() {
+  let saved = null;
+  try {
+    saved = restoreRun(localStorage.getItem(RUN_STORAGE_KEY));
+  } catch {}
+  if (!saved) {
+    clearRun();
+    return;
+  }
+  soundEnabled = $('#sound-enabled').checked;
+  currentConfig = saved.config;
+  currentPlan = createPlan(saved.config);
+  currentMode = saved.config.mode;
+  showTimerView();
+  isRunning = true;
+  isPaused = true;
+  previousPhaseIndex = -1;
+  previousCueSecond = null;
+  runId += 1;
+  worker.postMessage({ type: 'start', config: currentConfig, runId, elapsedMs: saved.elapsedMs, paused: true });
+  startWallClock();
+  $('#start-button').textContent = '繼續';
+  $('#timer-live').textContent = '已還原上次暫停的訓練，按「繼續」接著計時';
+  requestWakeLock();
+}
+
+worker.addEventListener('message', ({ data }) => {
+  if (!isRunning || data.runId !== runId) return;
+  if (data.snapshot) renderSnapshot(data.snapshot);
+  if (data.type === 'paused') saveRun();
+  if (data.type === 'complete' && isRunning) finishWorkout();
 });
 
 form.addEventListener('input', (event) => {
   if (event.target.name === 'mode') updateSetup();
   else updateSummary();
+  saveSettings();
 });
 form.addEventListener('submit', startWorkout);
 
-$('#pause-button').addEventListener('click', () => {
-  isPaused = !isPaused;
-  worker.postMessage({ type: isPaused ? 'pause' : 'resume' });
-  $('#pause-button').textContent = isPaused ? '繼續' : '暫停';
-  $('#timer-live').textContent = isPaused ? '計時已暫停' : '計時繼續';
-});
-$('#finish-button').addEventListener('click', () => { playComplete(); leaveTimer(true); });
-$('#cancel-button').addEventListener('click', () => leaveTimer(false));
-$('#sound-button').addEventListener('click', async () => {
-  soundEnabled = !soundEnabled;
-  if (soundEnabled) { await unlockAudio(); tone(740, 0.12); }
-  $('#sound-button').textContent = soundEnabled ? '聲音 ON' : '聲音 OFF';
-  $('#sound-button').setAttribute('aria-pressed', String(!soundEnabled));
-  $('#sound-button').setAttribute('aria-label', soundEnabled ? '關閉聲音' : '開啟聲音');
-});
+$('#start-button').addEventListener('click', toggleTimer);
+$('#reset-button').addEventListener('click', resetTimer);
+$('#finish-button').addEventListener('click', finishWorkout);
+$('#cancel-button').addEventListener('click', () => leaveTimer());
+$('#share-button').addEventListener('click', openShare);
+$('#share-form').addEventListener('submit', showSharePreview);
+$('#copy-text-button').addEventListener('click', copyResultText);
+$('#share-text-button').addEventListener('click', shareResultText);
+$('#download-image-button').addEventListener('click', downloadImage);
+$$('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => button.closest('dialog').close()));
 $('#sound-volume').addEventListener('input', updateSoundVolume);
+$('#sound-volume').addEventListener('change', () => {
+  normalizeSoundVolume();
+  updateSoundVolume();
+  saveSettings();
+});
+$$('[data-volume-step]').forEach((button) => button.addEventListener('click', () => {
+  const field = $('#sound-volume');
+  normalizeSoundVolume();
+  if (Number(button.dataset.volumeStep) > 0) field.stepUp();
+  else field.stepDown();
+  updateSoundVolume();
+  saveSettings();
+}));
 $('#sound-enabled').addEventListener('change', updateSoundToggleLabel);
 $('#test-sound-button').addEventListener('click', async () => {
   try {
-    await unlockAudio();
+    if (!(await unlockAudio())) throw new Error('audio unavailable');
     updateSoundVolume();
     playSoundPreview();
-    $('#sound-test-status').textContent = `已播放 ${Math.round(soundVolume * 100)}% 音量的測試音`;
+    $('#sound-test-status').textContent = `已試聽 ${Math.round(soundVolume * 100)}% 音量`;
   } catch {
-    $('#sound-test-status').textContent = '此瀏覽器無法播放測試音';
+    $('#sound-test-status').textContent = '此瀏覽器無法試聽';
   }
 });
-$('#fullscreen-button').addEventListener('click', async () => {
-  if (!document.fullscreenElement) await timerView.requestFullscreen?.();
-  else await document.exitFullscreen?.();
+$('#mode-help-button').addEventListener('click', openModeHelp);
+$('#mode-help-dialog').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
 });
-
 document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && isRunning) {
+  if (document.visibilityState === 'visible' && !timerView.hidden) {
     if (!wakeLock) await requestWakeLock();
-    worker.postMessage({ type: 'sync' });
+    if (isRunning) worker.postMessage({ type: 'sync' });
   }
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') pauseForBackground();
 });
 
 window.addEventListener('beforeinstallprompt', (event) => {
@@ -369,13 +711,17 @@ $('#install-button').addEventListener('click', async () => {
 
 if ('serviceWorker' in navigator) {
   let serviceWorkerRefreshPending = false;
+  const hadServiceWorkerController = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!serviceWorkerRefreshPending) {
+    if (hadServiceWorkerController && !serviceWorkerRefreshPending) {
       serviceWorkerRefreshPending = true;
       window.location.reload();
     }
   });
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').then((registration) => registration.update()));
 }
+loadSettings();
 updateSoundToggleLabel();
+updateSoundVolume();
 updateSetup();
+restoreSavedRun();

@@ -86,3 +86,20 @@ export function formatClock(totalSeconds) {
   const minutes = Math.floor(seconds / 60);
   return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 }
+
+export function summarizeRun(plan, elapsedMs) {
+  const { config } = plan;
+  const elapsed = Math.max(0, Math.min(elapsedMs, plan.totalMs));
+  const prepMs = plan.phases[0]?.kind === 'prepare' ? plan.phases[0].durationMs : 0;
+  const time = formatClock(Math.floor(Math.max(0, elapsed - prepMs) / 1000));
+  const rounds = plan.phases.filter((phase) => phase.kind === 'work' && phase.endMs <= elapsed).length;
+  if (config.mode === 'tabata') return { label: 'TABATA', time, lines: [`完成 ${rounds}／${config.rounds} 輪`, `動作 ${config.work} 秒／休息 ${config.rest} 秒 · 總時長 ${time}`] };
+  if (config.mode === 'emom') return { label: 'EMOM', time, lines: [`完成 ${rounds}／${config.rounds} 輪`, `每輪 ${formatClock(config.interval)} · 總時長 ${time}`] };
+  if (config.mode === 'amrap') return { label: 'AMRAP', time, lines: [`固定時間 ${formatClock(config.duration)} 完成`] };
+  if (elapsed >= plan.totalMs) return { label: 'FOR TIME', time, lines: [`達到時間上限 ${formatClock(config.cap)}`] };
+  return { label: 'FOR TIME', time, lines: [`成績 ${time}`, `時間上限 ${formatClock(config.cap)}`] };
+}
+
+export function shareText(summary, exercise) {
+  return `我剛做了『${exercise.trim()}』！\n${[summary.label, ...summary.lines].join(' · ')}`;
+}

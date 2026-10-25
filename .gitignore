@@ -1,3 +1,21 @@
 dist/
 .wrangler/
 .DS_Store
+
+# AI agent 指引（僅本機）
+AGENTS.md
+CLAUDE.md
+.claude/
+
+# 相依套件與紀錄
+node_modules/
+*.log
+
+# 環境變數與機密
+.env
+.env.*
+
+# 編輯器與系統檔
+.vscode/
+.idea/
+Thumbs.db

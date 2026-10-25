@@ -7,7 +7,7 @@ cd "$project_dir"
 node --test tests/*.test.mjs
 sh scripts/build.sh
 
-required_files='index.html styles.css app.js timer-core.mjs timer-worker.js manifest.webmanifest icon.svg sw.js'
+required_files='index.html styles.css app.js timer-core.mjs run-state.mjs timer-worker.js manifest.webmanifest icon.svg sw.js'
 for file in $required_files; do
   test -s "dist/$file" || { printf 'Missing build artifact: %s\n' "$file" >&2; exit 1; }
 done
@@ -25,7 +25,7 @@ grep -q "'./timer-worker.js'" dist/sw.js
 grep -q 'id="test-sound-button"' dist/index.html
 grep -q 'id="sound-volume"' dist/index.html
 grep -q 'min="20" max="100" step="5" value="50"' dist/index.html
-grep -q '50%：符合目前裝置音量' dist/index.html
+grep -q '50%：符合裝置音量' dist/index.html
 grep -q 'id="sound-enabled-label"' dist/index.html
 grep -q 'function playSoundPreview' dist/app.js
 grep -q 'soundVolume' dist/app.js
@@ -33,6 +33,26 @@ grep -q 'function soundOutputGain' dist/app.js
 grep -q 'createDynamicsCompressor' dist/app.js
 grep -q 'function updateSoundToggleLabel' dist/app.js
 grep -q 'networkFirst' dist/sw.js
-grep -q "box-clock-v5" dist/sw.js
+grep -q "box-clock-v12" dist/sw.js
+! grep -q 'id="sound-button"' dist/index.html
+! grep -q 'id="fullscreen-button"' dist/index.html
+! grep -q "#sound-button" dist/app.js
+! grep -q "#fullscreen-button" dist/app.js
+grep -q 'value="fortime" checked' dist/index.html
+grep -q 'id="mode-help-dialog"' dist/index.html
+grep -q 'function openModeHelp' dist/app.js
+grep -q "localStorage.setItem(STORAGE_KEY" dist/app.js
+grep -q 'function loadSettings' dist/app.js
+grep -q 'id="reset-button"' dist/index.html
+grep -q 'function resetTimer' dist/app.js
+grep -q 'body.timer-running .timer-view' dist/styles.css
+grep -q "'./run-state.mjs'" dist/sw.js
+grep -q 'function pauseForBackground' dist/app.js
+grep -q 'restoreSavedRun();' dist/app.js
+grep -q "addEventListener('click', finishWorkout)" dist/app.js
+grep -q 'id="share-button"' dist/index.html
+grep -q 'id="wake-dialog"' dist/index.html
+grep -q 'function renderShareImage' dist/app.js
+grep -q 'function startWallClock' dist/app.js
 
 printf 'Verification passed: tests, PWA shell, worker, Wake Lock, normalized 50 percent device-volume audio, locale, and artifact extensions.\n'

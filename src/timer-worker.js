@@ -1,25 +1,22 @@
 import { createPlan, snapshotAt } from './timer-core.mjs';
+import { createRunClock } from './run-state.mjs';
 
 let plan = null;
-let startedAt = 0;
-let pausedAt = 0;
-let pausedTotal = 0;
 let tickHandle = null;
 let running = false;
 let paused = false;
+let runId = 0;
 
-const now = () => performance.now();
+const clock = createRunClock(() => performance.now());
 
-function currentElapsed(at = now()) {
-  if (!plan) return 0;
-  const effectiveNow = paused ? pausedAt : at;
-  return Math.max(0, effectiveNow - startedAt - pausedTotal);
+function currentElapsed() {
+  return plan ? clock.elapsed() : 0;
 }
 
 function emit(type = 'tick') {
   if (!plan) return;
   const snapshot = snapshotAt(plan, currentElapsed());
-  self.postMessage({ type: snapshot.complete ? 'complete' : type, snapshot, plan });
+  self.postMessage({ type: snapshot.complete ? 'complete' : type, snapshot, plan, runId });
   if (snapshot.complete) stopLoop();
 }
 
@@ -37,20 +34,20 @@ function stopLoop() {
 self.addEventListener('message', ({ data }) => {
   if (data.type === 'start') {
     plan = createPlan(data.config);
-    startedAt = now();
-    pausedAt = 0;
-    pausedTotal = 0;
+    runId = data.runId;
+    paused = data.paused === true;
+    clock.start({ elapsedMs: data.elapsedMs ?? 0, paused });
     running = true;
-    paused = false;
-    emit('started');
-    startLoop();
+    stopLoop();
+    emit(paused ? 'paused' : 'started');
+    if (!paused) startLoop();
   } else if (data.type === 'pause' && running && !paused) {
-    pausedAt = now();
+    clock.pause();
     paused = true;
     stopLoop();
     emit('paused');
   } else if (data.type === 'resume' && running && paused) {
-    pausedTotal += now() - pausedAt;
+    clock.resume();
     paused = false;
     emit('resumed');
     startLoop();

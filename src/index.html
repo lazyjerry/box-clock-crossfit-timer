@@ -15,7 +15,7 @@
 <body>
   <main id="top">
     <header class="site-header">
-      <a class="brand" href="#top" aria-label="BOX CLOCK 首頁"><span class="brand-mark">BC</span><span>BOX CLOCK</span></a>
+      <a class="brand" href="#top" aria-label="BOX CLOCK 首頁"><img class="brand-mark" src="./icon.svg" alt="" width="34" height="34"><span>BOX CLOCK</span></a>
       <div class="status-pills" aria-label="應用程式狀態">
         <span class="status-pill"><i></i>OFFLINE READY</span>
         <button id="install-button" class="install-button" type="button" hidden>安裝 APP</button>
@@ -40,18 +40,18 @@
         <fieldset class="mode-picker">
           <legend>訓練模式</legend>
           <div class="mode-grid">
-            <label class="mode-option"><input type="radio" name="mode" value="amrap" checked><span><strong>AMRAP</strong><small>固定時間內完成最多輪</small></span></label>
-            <label class="mode-option"><input type="radio" name="mode" value="emom"><span><strong>EMOM</strong><small>每個間隔開始一輪</small></span></label>
+            <label class="mode-option"><input type="radio" name="mode" value="fortime" checked><span><strong>FOR TIME</strong><small>正數計時，完成就停止</small></span></label>
             <label class="mode-option"><input type="radio" name="mode" value="tabata"><span><strong>TABATA</strong><small>動作與休息交替</small></span></label>
-            <label class="mode-option"><input type="radio" name="mode" value="fortime"><span><strong>FOR TIME</strong><small>正數計時，完成就停止</small></span></label>
+            <label class="mode-option"><input type="radio" name="mode" value="emom"><span><strong>EMOM</strong><small>每個間隔開始一輪</small></span></label>
+            <label class="mode-option"><input type="radio" name="mode" value="amrap"><span><strong>AMRAP</strong><small>固定時間內完成最多輪</small></span></label>
           </div>
         </fieldset>
 
         <div class="settings-layout">
           <section class="settings-panel" aria-labelledby="time-settings-title">
-            <div class="panel-title"><span>時間設定</span><small id="mode-description">固定倒數，在時間內完成最多輪數或次數。</small></div>
+            <div class="panel-title"><div class="panel-heading"><span>時間設定</span><button id="mode-help-button" class="help-button" type="button" aria-haspopup="dialog" aria-controls="mode-help-dialog" aria-label="查看 FOR TIME 範例">?</button></div><small id="mode-description">由零開始正數計時；做完按「完成」，或到時間上限自動結束。</small></div>
 
-            <div class="mode-settings" data-mode="amrap">
+            <div class="mode-settings" data-mode="amrap" hidden>
               <div class="time-field"><label for="amrap-minutes">訓練時間</label><div><input id="amrap-minutes" name="amrapMinutes" type="number" min="1" max="99" value="12" inputmode="numeric" required><span>分</span><input id="amrap-seconds" name="amrapSeconds" type="number" min="0" max="59" value="0" inputmode="numeric" aria-label="AMRAP 秒數" required><span>秒</span></div></div>
             </div>
 
@@ -70,7 +70,7 @@
               </div>
             </div>
 
-            <div class="mode-settings" data-mode="fortime" hidden>
+            <div class="mode-settings" data-mode="fortime">
               <div class="time-field"><label for="fortime-minutes">時間上限</label><div><input id="fortime-minutes" name="fortimeMinutes" type="number" min="1" max="99" value="20" inputmode="numeric" required><span>分</span><input id="fortime-seconds" name="fortimeSeconds" type="number" min="0" max="59" value="0" inputmode="numeric" aria-label="For Time 秒數" required><span>秒</span></div></div>
             </div>
 
@@ -90,22 +90,24 @@
               <option value="15">15 秒</option>
             </select>
             <div class="sound-settings">
-              <div class="sound-toggle">
-                <div class="sound-copy"><strong>聲音提示</strong><small>倒數、切換與完訓音效</small></div>
+              <div class="sound-copy"><strong>聲音提示</strong><small>倒數、切換與完訓音效</small></div>
+              <div class="sound-controls">
                 <label class="sound-switch" for="sound-enabled">
                   <input id="sound-enabled" type="checkbox" checked>
                   <span class="sound-switch-track" aria-hidden="true"><span></span></span>
                   <span id="sound-enabled-label" class="sound-switch-label">開啟</span>
                 </label>
+                <label class="volume-label" for="sound-volume">音量</label>
+                <div class="volume-stepper">
+                  <button id="sound-volume-down" type="button" data-volume-step="-1" aria-label="降低提示音量">−</button>
+                  <input id="sound-volume" type="number" min="20" max="100" step="5" value="50" inputmode="numeric" aria-describedby="sound-volume-description sound-test-status">
+                  <span aria-hidden="true">%</span>
+                  <button id="sound-volume-up" type="button" data-volume-step="1" aria-label="提高提示音量">+</button>
+                </div>
+                <button id="test-sound-button" class="test-sound-button" type="button">試聽</button>
               </div>
-              <div class="volume-row">
-                <div class="volume-heading"><label for="sound-volume">提示音量</label><output id="sound-volume-value" for="sound-volume">50%</output></div>
-                <input id="sound-volume" type="range" min="20" max="100" step="5" value="50" aria-describedby="sound-volume-description sound-test-status">
-                <p id="sound-volume-description" class="volume-note">50%：符合目前裝置音量</p>
-              </div>
-              <div class="sound-test-row">
-                <button id="test-sound-button" class="test-sound-button" type="button">播放測試音</button>
-                <p id="sound-test-status" aria-live="polite">測試音不受開關影響</p>
+              <div class="volume-notes">
+                <p class="volume-note"><span id="sound-volume-description">50%：符合裝置音量</span>；<span id="sound-test-status" aria-live="polite">試聽不受開關影響</span></p>
               </div>
             </div>
             <output id="workout-summary" class="workout-summary" aria-live="polite"></output>
@@ -114,6 +116,13 @@
           </aside>
         </div>
       </form>
+
+      <dialog id="mode-help-dialog" class="help-dialog" aria-labelledby="mode-help-title">
+        <form method="dialog">
+          <div class="help-dialog-head"><h3 id="mode-help-title">FOR TIME 範例</h3><button class="help-close" type="submit" aria-label="關閉">×</button></div>
+          <div id="mode-help-body"></div>
+        </form>
+      </dialog>
     </section>
 
     <section id="timer-view" class="timer-view" aria-labelledby="timer-phase" hidden>
@@ -126,13 +135,46 @@
         <p id="next-display" class="next-display">接下來 · AMRAP</p>
       </div>
       <div class="timer-controls">
-        <button id="pause-button" class="control-button primary" type="button">暫停</button>
         <button id="finish-button" class="control-button finish" type="button" hidden>完成</button>
-        <button id="sound-button" class="control-button icon" type="button" aria-pressed="false" aria-label="關閉聲音">聲音 ON</button>
-        <button id="fullscreen-button" class="control-button icon" type="button">全螢幕</button>
+        <button id="share-button" class="control-button share" type="button" hidden>分享</button>
+        <button id="start-button" class="control-button primary" type="button">開始</button>
+        <button id="reset-button" class="control-button" type="button">重置</button>
         <button id="cancel-button" class="control-button ghost" type="button">結束並返回</button>
       </div>
       <p id="timer-live" class="sr-only" aria-live="assertive"></p>
+      <dialog id="wake-dialog" class="help-dialog warning-dialog" aria-labelledby="wake-dialog-title">
+        <form method="dialog">
+          <div class="help-dialog-head"><h3 id="wake-dialog-title">螢幕可能會自動關閉</h3><button class="help-close" type="submit" aria-label="關閉">×</button></div>
+          <p>無法保持螢幕常亮，計時途中螢幕可能熄滅，也可能聽不到提示音。請試試：</p>
+          <ul>
+            <li>關閉省電模式（iPhone 的「低耗電模式」）</li>
+            <li>把「自動鎖定」或「螢幕逾時」調長</li>
+            <li>用最新版 Safari、Chrome 或 Edge，並以 HTTPS 開啟</li>
+          </ul>
+          <button class="dialog-button" type="submit">我知道了</button>
+        </form>
+      </dialog>
+      <dialog id="share-dialog" class="help-dialog" aria-labelledby="share-dialog-title">
+        <form id="share-form">
+          <div class="help-dialog-head"><h3 id="share-dialog-title">分享成績</h3><button class="help-close" type="button" data-close-dialog aria-label="關閉">×</button></div>
+          <label for="share-exercise">你剛做什麼運動？</label>
+          <input id="share-exercise" class="share-input" type="text" maxlength="30" required autocomplete="off" enterkeyhint="done" placeholder="例如：波比跳">
+          <button class="dialog-button" type="submit">馬上分享！</button>
+        </form>
+      </dialog>
+      <dialog id="share-preview-dialog" class="help-dialog" aria-labelledby="share-preview-title">
+        <form method="dialog">
+          <div class="help-dialog-head"><h3 id="share-preview-title">分享預覽</h3><button class="help-close" type="submit" aria-label="關閉">×</button></div>
+          <img id="share-preview-image" class="share-preview" width="1080" height="1080" alt="透明背景的成績浮水印圖片">
+          <p id="share-preview-text" class="share-preview-text"></p>
+          <div class="share-actions">
+            <button id="copy-text-button" class="dialog-button ghost" type="button">複製文字</button>
+            <button id="download-image-button" class="dialog-button ghost" type="button">下載浮水印</button>
+            <button id="share-text-button" class="dialog-button wide" type="button">分享</button>
+          </div>
+          <p id="share-status" class="share-status" aria-live="polite"></p>
+        </form>
+      </dialog>
     </section>
 
     <section class="feature-strip" aria-label="功能說明">
