@@ -4,6 +4,8 @@
 
 線上版：<https://box-clock.jlab-app.cloud>
 
+使用說明：[手機操作步驟與示範動畫](docs/usage.md)
+
 ## 功能
 
 - Web Worker 以單調時鐘校正經過時間，避免每秒遞減造成累積誤差。
@@ -43,3 +45,4 @@ npm run verify
 - `public/`：PWA manifest、Service Worker 與圖示。
 - `tests/`：計時狀態、時鐘、進度保存與音訊恢復的邊界測試。
 - `scripts/`：專案產生、建置、驗證與發布流程。
+- `docs/`：使用說明與操作示範 GIF；介面改版後以 `sh scripts/record-usage-gifs.sh` 重新錄製（需要 ffmpeg）。
