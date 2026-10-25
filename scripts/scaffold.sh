@@ -1344,22 +1344,28 @@ async function renderShareImage(exercise) {
   const context = canvas.getContext('2d');
   const sans = 'system-ui,-apple-system,"PingFang TC","Noto Sans TC",sans-serif';
   const mono = 'ui-monospace,SFMono-Regular,Menlo,monospace';
-  const line = (text, y, fontSize, family, color = '#fff', { stroke = 0.16, marker = false } = {}) => {
+  const line = (text, y, fontSize, family, color = '#fff', { stroke = 0.16, plate = false, shadow = 'rgba(23,30,52,.35)', blur = 0.12 } = {}) => {
     let shown = fontSize;
     context.font = `900 ${shown}px ${family}`;
     while (context.measureText(text).width > size - 120 && shown > 20) {
       shown -= 2;
       context.font = `900 ${shown}px ${family}`;
     }
-    if (marker) {
-      // Highlighter band behind the lower half of the glyphs, in the timer screen's rest purple
-      const width = context.measureText(text).width + shown * 0.5;
-      context.fillStyle = 'rgba(118,82,202,.88)';
-      context.fillRect((size - width) / 2, y - shown * 0.42, width, shown * 0.56);
+    if (plate) {
+      // Caption plate in the site's ink with a coral rule, readable on any photo or video frame
+      const width = context.measureText(text).width + shown * 0.9;
+      const left = (size - width) / 2;
+      context.fillStyle = 'rgba(23,30,52,.86)';
+      context.fillRect(left, y - shown * 1.02, width, shown * 1.38);
+      context.fillStyle = '#ed735f';
+      context.fillRect(left, y + shown * 0.3, width, shown * 0.06);
+      context.fillStyle = color;
+      context.fillText(text, size / 2, y);
+      return;
     }
     context.lineWidth = shown * stroke;
-    context.shadowColor = 'rgba(0,0,0,.45)';
-    context.shadowBlur = shown * 0.3;
+    context.shadowColor = shadow;
+    context.shadowBlur = shown * blur;
     context.strokeStyle = 'rgba(23,30,52,.92)';
     context.strokeText(text, size / 2, y);
     context.shadowColor = 'transparent';
@@ -1373,8 +1379,8 @@ async function renderShareImage(exercise) {
   line(`我剛做了『${exercise}』！`, 400, 76, sans);
   line(currentSummary.time, 640, 230, mono);
   line(currentSummary.label, 740, 58, mono, '#ed735f', { stroke: 0.3 });
-  currentSummary.lines.forEach((text, index) => line(text, 830 + index * 70, 44, sans, '#fff', { marker: true }));
-  line('BOX CLOCK', 1020, 30, mono, '#e4e6ee');
+  currentSummary.lines.forEach((text, index) => line(text, 830 + index * 78, 50, sans, '#fff', { plate: true }));
+  line('BOX CLOCK', 1020, 30, mono, '#e4e6ee', { shadow: 'rgba(0,0,0,.45)', blur: 0.3 });
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 }
 
@@ -2103,7 +2109,7 @@ AAAAAElFTkSuQmCC
 EOF
 
 cat > "$project_dir/public/sw.js" <<'EOF'
-const CACHE_NAME = 'box-clock-v34';
+const CACHE_NAME = 'box-clock-v35';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './timer-core.mjs', './run-state.mjs', './device.mjs', './timer-worker.js', './manifest.webmanifest', './icon.svg', './icon-maskable.svg', './apple-touch-icon.png', './jerry.png'];
 
 self.addEventListener('install', (event) => {
