@@ -1,6 +1,6 @@
 import { createPlan, cueAt, displaySeconds, formatClock, shareText, snapshotAt, summarizeRun } from './timer-core.mjs';
 import { formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
-import { isBatteryLow } from './device.mjs';
+import { installButtonAction, installPlatform, isBatteryLow } from './device.mjs';
 
 const $ =(selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -813,17 +813,46 @@ document.addEventListener('visibilitychange', () => {
   suspendWallClock();
 });
 
+function installAction() {
+  // iOS 從主畫面開啟時只有 navigator.standalone 為 true，其他平台看 display-mode。
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  return installButtonAction({ standalone, hasPrompt: Boolean(installPrompt) });
+}
+function updateInstallButton() {
+  $('#install-button').hidden = installAction() === 'hidden';
+}
+function showInstallPanel(platform) {
+  $$('[data-install-panel]').forEach((panel) => { panel.hidden = panel.dataset.installPanel !== platform; });
+  $$('[data-install-tab]').forEach((tab) => tab.setAttribute('aria-pressed', String(tab.dataset.installTab === platform)));
+}
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault();
   installPrompt = event;
-  $('#install-button').hidden = false;
+  updateInstallButton();
 });
-$('#install-button').addEventListener('click', async () => {
-  if (!installPrompt) return;
-  await installPrompt.prompt();
+window.addEventListener('appinstalled', () => {
   installPrompt = null;
   $('#install-button').hidden = true;
 });
+$('#install-button').addEventListener('click', async () => {
+  const action = installAction();
+  if (action === 'prompt') {
+    const prompt = installPrompt;
+    installPrompt = null;
+    await prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    if (outcome === 'accepted') $('#install-button').hidden = true;
+    return;
+  }
+  if (action !== 'guide') return;
+  showInstallPanel(installPlatform(navigator));
+  $('#install-dialog').showModal();
+});
+$$('[data-install-tab]').forEach((tab) => tab.addEventListener('click', () => showInstallPanel(tab.dataset.installTab)));
+$('#install-dialog').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
+});
+updateInstallButton();
 
 if ('serviceWorker' in navigator) {
   let serviceWorkerRefreshPending = false;

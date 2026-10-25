@@ -222,6 +222,18 @@ cat > "$project_dir/src/device.mjs" <<'EOF'
 export function isBatteryLow(battery) {
   return !battery.charging && battery.level < 0.3;
 }
+
+export function installButtonAction({ standalone, hasPrompt }) {
+  if (standalone) return 'hidden';
+  return hasPrompt ? 'prompt' : 'guide';
+}
+
+export function installPlatform({ userAgent = '', maxTouchPoints = 0 }) {
+  // iPadOS Safari reports a Mac user agent; touch points tell it apart from a real Mac.
+  if (/iPhone|iPad|iPod/.test(userAgent) || (/Macintosh/.test(userAgent) && maxTouchPoints > 1)) return 'ios';
+  if (/Android/.test(userAgent)) return 'android';
+  return 'desktop';
+}
 EOF
 
 cat > "$project_dir/src/timer-worker.js" <<'EOF'
@@ -510,6 +522,169 @@ cat > "$project_dir/src/index.html" <<'EOF'
         <p class="guide-source">原始碼：<a href="https://github.com/lazyjerry/box-clock-crossfit-timer" target="_blank" rel="noopener noreferrer">github.com/lazyjerry/box-clock-crossfit-timer</a></p>
       </form>
     </dialog>
+
+    <svg class="install-defs" width="0" height="0" aria-hidden="true" focusable="false">
+      <defs>
+        <clipPath id="ip-screen"><rect x="6" y="6" width="78" height="148" rx="9"/></clipPath>
+        <symbol id="ip-phone" viewBox="0 0 90 160">
+          <rect x="1" y="1" width="88" height="158" rx="13" fill="#171e34"/>
+          <rect x="6" y="6" width="78" height="148" rx="9" fill="#f5f3ed"/>
+          <rect x="12" y="34" width="9" height="9" rx="2" fill="#171e34"/>
+          <rect x="24" y="37" width="24" height="3" fill="#171e34" opacity=".5"/>
+          <rect x="12" y="50" width="54" height="7" fill="#171e34"/>
+          <rect x="12" y="60" width="42" height="7" fill="none" stroke="#171e34"/>
+          <rect x="12" y="74" width="66" height="26" fill="#fffef9" stroke="#d4d2cc"/>
+          <rect x="12" y="74" width="66" height="2" fill="#ed735f"/>
+          <rect x="35" y="9" width="20" height="5" rx="2.5" fill="#171e34"/>
+        </symbol>
+        <symbol id="ip-chrome-bar" viewBox="0 0 90 160">
+          <rect x="6" y="15" width="78" height="14" fill="#fffef9"/>
+          <rect x="10" y="17" width="58" height="10" rx="5" fill="#ecebe5"/>
+          <text x="14" y="23.5" font-size="4" fill="#707486" textLength="50" lengthAdjust="spacingAndGlyphs">box-clock.jlab-app.cloud</text>
+          <g fill="#171e34"><circle cx="76" cy="18.5" r="1"/><circle cx="76" cy="22" r="1"/><circle cx="76" cy="25.5" r="1"/></g>
+        </symbol>
+        <symbol id="ip-home" viewBox="0 0 90 160">
+          <rect x="1" y="1" width="88" height="158" rx="13" fill="#171e34"/>
+          <rect x="6" y="6" width="78" height="148" rx="9" fill="#3b435b"/>
+          <g fill="#fff" opacity=".25">
+            <rect x="12" y="24" width="13" height="13" rx="3.5"/><rect x="30" y="24" width="13" height="13" rx="3.5"/><rect x="48" y="24" width="13" height="13" rx="3.5"/><rect x="66" y="24" width="13" height="13" rx="3.5"/>
+            <rect x="12" y="46" width="13" height="13" rx="3.5"/><rect x="30" y="46" width="13" height="13" rx="3.5"/><rect x="48" y="46" width="13" height="13" rx="3.5"/><rect x="66" y="46" width="13" height="13" rx="3.5"/>
+            <rect x="12" y="68" width="13" height="13" rx="3.5"/><rect x="30" y="68" width="13" height="13" rx="3.5"/>
+            <rect x="10" y="134" width="70" height="16" rx="6"/>
+          </g>
+          <image href="./icon.svg" x="48" y="68" width="13" height="13"/>
+          <text x="54.5" y="92" font-size="4" font-weight="700" fill="#fff" text-anchor="middle">BOX CLOCK</text>
+          <circle cx="54.5" cy="74.5" r="9.5" fill="none" stroke="#ed735f" stroke-width="2"/>
+          <rect x="35" y="9" width="20" height="5" rx="2.5" fill="#171e34"/>
+        </symbol>
+      </defs>
+    </svg>
+
+    <dialog id="install-dialog" class="help-dialog install-dialog" aria-labelledby="install-dialog-title">
+      <form method="dialog">
+        <div class="help-dialog-head"><h3 id="install-dialog-title">加到主畫面</h3><button class="help-close" type="submit" aria-label="關閉">×</button></div>
+        <p>加到主畫面後像 App 一樣全螢幕開啟，沒有網路也能訓練。這個瀏覽器沒有一鍵安裝，照下面步驟手動加入。</p>
+        <div class="install-tabs" role="group" aria-label="選擇裝置">
+          <button type="button" data-install-tab="ios" aria-pressed="false">iPhone／iPad</button>
+          <button type="button" data-install-tab="android" aria-pressed="false">Android</button>
+          <button type="button" data-install-tab="desktop" aria-pressed="false">電腦</button>
+        </div>
+
+        <ol class="install-steps" data-install-panel="ios">
+          <li>
+            <svg class="install-shot" viewBox="0 0 90 160" aria-hidden="true">
+              <use href="#ip-phone" width="90" height="160"/>
+              <g clip-path="url(#ip-screen)">
+                <rect x="6" y="110" width="78" height="44" fill="#fffef9" stroke="#d4d2cc" stroke-width=".6"/>
+                <rect x="12" y="115" width="66" height="11" rx="5.5" fill="#ecebe5"/>
+                <text x="19" y="122.3" font-size="4" fill="#707486" textLength="52" lengthAdjust="spacingAndGlyphs">box-clock.jlab-app.cloud</text>
+                <g fill="none" stroke="#171e34" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 135l-3 3 3 3"/>
+                  <path d="M30 135l3 3-3 3"/>
+                  <path d="M42.5 135.5H41v7h8v-7h-1.5M45 138.5v-7M43 133.5l2-2 2 2"/>
+                  <path d="M55 135c1.5-.8 3-.8 4.5 0 1.5-.8 3-.8 4.5 0v7c-1.5-.8-3-.8-4.5 0-1.5-.8-3-.8-4.5 0zM59.5 135v7"/>
+                  <rect x="69.5" y="135" width="6" height="6" rx="1"/><path d="M71.5 133h5.5v5.5"/>
+                </g>
+                <circle class="ip-hl" cx="45" cy="137" r="8"/>
+              </g>
+            </svg>
+            <div><strong>點「分享」</strong><p>Safari 點下方工具列的分享鈕（方框加向上箭頭）。iOS 26 先點網址列旁的「⋯」，再點「分享」。</p></div>
+          </li>
+          <li>
+            <svg class="install-shot" viewBox="0 0 90 160" aria-hidden="true">
+              <use href="#ip-phone" width="90" height="160"/>
+              <g clip-path="url(#ip-screen)">
+                <rect x="6" y="6" width="78" height="148" fill="#171e34" opacity=".35"/>
+                <rect x="6" y="50" width="78" height="106" rx="7" fill="#f2f2f7"/>
+                <rect x="12" y="56" width="66" height="14" rx="3" fill="#fff"/>
+                <image href="./icon.svg" x="14" y="58" width="10" height="10"/>
+                <text x="27" y="64.8" font-size="5" font-weight="700" fill="#171e34">BOX CLOCK</text>
+                <circle cx="18" cy="82" r="5.5" fill="#34c759"/><circle cx="33" cy="82" r="5.5" fill="#5ac8fa"/><circle cx="48" cy="82" r="5.5" fill="#ff9500"/><circle cx="63" cy="82" r="5.5" fill="#8e8e93"/>
+                <rect x="12" y="94" width="66" height="52" rx="3" fill="#fff"/>
+                <g stroke="#e5e5ea" stroke-width=".6"><path d="M12 107h66M12 120h66M12 133h66"/></g>
+                <g font-size="5" fill="#171e34"><text x="16" y="102.3">拷貝</text><text x="16" y="115.3">加入書籤</text><text x="16" y="128.3" font-weight="700">加入主畫面</text><text x="16" y="141.3" fill="#007aff">編輯動作⋯</text></g>
+                <g fill="none" stroke="#171e34" stroke-width=".8"><rect x="68" y="123" width="6" height="6" rx="1.2"/><path d="M71 124.5v3M69.5 126h3"/></g>
+                <rect class="ip-row" x="12" y="120" width="66" height="13" rx="1"/>
+              </g>
+            </svg>
+            <div><strong>點「加入主畫面」</strong><p>分享選單往下滑就會看到。找不到時點最下方「編輯動作⋯」把它加進清單。</p></div>
+          </li>
+          <li>
+            <svg class="install-shot" viewBox="0 0 90 160" aria-hidden="true">
+              <use href="#ip-phone" width="90" height="160"/>
+              <g clip-path="url(#ip-screen)">
+                <rect x="6" y="6" width="78" height="148" fill="#171e34" opacity=".35"/>
+                <rect x="6" y="22" width="78" height="134" rx="7" fill="#f2f2f7"/>
+                <text x="12" y="35" font-size="5" fill="#007aff">取消</text>
+                <text x="45" y="35" font-size="5" font-weight="700" fill="#171e34" text-anchor="middle">加入主畫面</text>
+                <text x="78" y="35" font-size="5.5" font-weight="700" fill="#007aff" text-anchor="end">加入</text>
+                <circle class="ip-hl" cx="72.5" cy="33" r="8"/>
+                <rect x="12" y="46" width="66" height="22" rx="3" fill="#fff"/>
+                <image href="./icon.svg" x="15" y="49" width="16" height="16"/>
+                <text x="35" y="56" font-size="5.5" font-weight="700" fill="#171e34">BOX CLOCK</text>
+                <rect x="35" y="60" width="34" height="2.5" fill="#c7c7cc"/>
+                <rect x="12" y="74" width="66" height="13" rx="3" fill="#fff"/>
+                <text x="15" y="82.3" font-size="4.6" fill="#171e34">以網頁 App 開啟</text>
+                <rect x="63" y="77" width="12" height="7" rx="3.5" fill="#34c759"/><circle cx="71.5" cy="80.5" r="2.8" fill="#fff"/>
+              </g>
+            </svg>
+            <div><strong>點右上角「加入」</strong><p>保持「以網頁 App 開啟」為開啟，名稱可以自己改。</p></div>
+          </li>
+          <li>
+            <svg class="install-shot" viewBox="0 0 90 160" aria-hidden="true"><use href="#ip-home" width="90" height="160"/></svg>
+            <div><strong>從主畫面開啟</strong><p>點 BOX CLOCK 圖示，全螢幕開啟、離線可用，也不會再出現「安裝 APP」按鈕。</p></div>
+          </li>
+        </ol>
+
+        <ol class="install-steps" data-install-panel="android" hidden>
+          <li>
+            <svg class="install-shot" viewBox="0 0 90 160" aria-hidden="true">
+              <use href="#ip-phone" width="90" height="160"/>
+              <use href="#ip-chrome-bar" width="90" height="160"/>
+              <circle class="ip-hl" cx="76" cy="22" r="6.5"/>
+            </svg>
+            <div><strong>點右上角「⋮」</strong><p>Chrome 通常會直接跳出安裝視窗；沒跳出時，從網址列右側的選單手動安裝。</p></div>
+          </li>
+          <li>
+            <svg class="install-shot" viewBox="0 0 90 160" aria-hidden="true">
+              <use href="#ip-phone" width="90" height="160"/>
+              <use href="#ip-chrome-bar" width="90" height="160"/>
+              <rect x="38" y="16" width="46" height="70" rx="3" fill="#171e34" opacity=".12"/>
+              <rect x="36" y="14" width="46" height="70" rx="3" fill="#fff" stroke="#d4d2cc" stroke-width=".6"/>
+              <g font-size="5" fill="#171e34"><text x="41" y="23.5">新增分頁</text><text x="41" y="34.5">記錄</text><text x="41" y="45.5">書籤</text><text x="41" y="56.5">分享</text><text x="41" y="67.5" font-weight="700">加到主畫面</text><text x="41" y="78.5">設定</text></g>
+              <rect class="ip-row" x="36" y="60" width="46" height="11" rx="1"/>
+            </svg>
+            <div><strong>點「加到主畫面」</strong><p>再選「安裝」。部分版本直接顯示「安裝應用程式」。Samsung 網際網路：「≡」→「新增頁面至」→「主畫面」。</p></div>
+          </li>
+          <li>
+            <svg class="install-shot" viewBox="0 0 90 160" aria-hidden="true">
+              <use href="#ip-phone" width="90" height="160"/>
+              <g clip-path="url(#ip-screen)">
+                <rect x="6" y="6" width="78" height="148" fill="#171e34" opacity=".35"/>
+                <rect x="11" y="56" width="68" height="50" rx="5" fill="#fff"/>
+                <text x="16" y="66" font-size="5.5" font-weight="700" fill="#171e34">安裝應用程式</text>
+                <image href="./icon.svg" x="16" y="71" width="11" height="11"/>
+                <text x="31" y="78.3" font-size="5" fill="#171e34">BOX CLOCK</text>
+                <text x="51" y="98" font-size="5" fill="#1a73e8" text-anchor="middle">取消</text>
+                <text x="68" y="98" font-size="5" font-weight="700" fill="#1a73e8" text-anchor="middle">安裝</text>
+                <circle class="ip-hl" cx="68" cy="96.3" r="7"/>
+              </g>
+            </svg>
+            <div><strong>點「安裝」</strong><p>等幾秒，圖示就會出現在主畫面或應用程式清單。</p></div>
+          </li>
+          <li>
+            <svg class="install-shot" viewBox="0 0 90 160" aria-hidden="true"><use href="#ip-home" width="90" height="160"/></svg>
+            <div><strong>從主畫面開啟</strong><p>點 BOX CLOCK 圖示，全螢幕開啟、離線可用，也不會再出現「安裝 APP」按鈕。</p></div>
+          </li>
+        </ol>
+
+        <ul class="install-desktop" data-install-panel="desktop" hidden>
+          <li><strong>Chrome／Edge</strong>：點網址列右側的安裝圖示（螢幕加向下箭頭），再按「安裝」。</li>
+          <li><strong>Safari（macOS Sonoma 以上）</strong>：選單列「檔案」→「加入 Dock」。</li>
+          <li><strong>Firefox</strong>：不支援安裝，加入書籤即可。</li>
+        </ul>
+      </form>
+    </dialog>
   </main>
   <script type="module" src="./app.js"></script>
 </body>
@@ -525,6 +700,7 @@ cat > "$project_dir/src/styles.css" <<'EOF'
 body.timer-running{background:var(--ink)}body.timer-running main{min-height:0;padding-bottom:0}body.timer-running .timer-view{height:100vh;height:100dvh;min-height:0;margin:0;border:0}
 .timer-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding-inline:max(12px,calc((100% - 560px)/2))}#timer-view .control-button{min-width:0;padding-inline:10px;white-space:nowrap}.timer-controls .finish{grid-column:1/-1}@media(max-width:360px){#timer-view .control-button{padding-inline:6px;font-size:14px}}@media(orientation:landscape) and (max-height:620px){.timer-stage .timer-clock{font-size:min(24vh,160px)}}
 .timer-controls .share{grid-column:1/-1}.control-button.share{color:#fff;background:var(--coral);border-color:var(--coral)}.timer-stage[data-phase=done] .timer-phase{color:#56b99a}.timer-stage[data-phase=done] .progress-track span{background:#56b99a}#wake-status{font-variant-numeric:tabular-nums}#wake-status.wake-warning{margin:-4px -8px;padding:4px 8px;color:#fff;background:#ff2d55;box-shadow:0 0 14px rgba(255,45,85,.7)}.warning-dialog{border-top-color:#ff2d55}.dialog-button{width:100%;min-height:46px;margin-top:16px;color:#fff;background:var(--ink);border:1px solid var(--ink);font-weight:900}.dialog-button:hover{background:var(--coral);border-color:var(--coral)}.dialog-button.ghost{color:var(--ink);background:transparent}.dialog-button.ghost:hover{color:#fff;background:var(--coral)}.help-dialog label{display:block;color:var(--ink);font-size:14px}.share-input{width:100%;height:50px;margin-top:9px;padding:0 13px;color:var(--ink);background:#fff;border:1px solid #bfc0c4;border-radius:0;font-size:16px;font-weight:800}.share-preview{display:block;width:100%;height:auto;background:repeating-conic-gradient(#d8d6cf 0 25%,#f3f1ea 0 50%) 0 0/24px 24px;border:1px solid var(--line)}.help-dialog .share-preview-text{margin-top:12px;color:var(--ink);font-weight:800;white-space:pre-line}.share-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.share-actions .dialog-button{margin-top:12px}.share-actions .wide{grid-column:1/-1;margin-top:0}.help-dialog .share-status{min-height:22px;margin-top:8px;color:var(--green);font-weight:800}
+.install-defs{position:absolute;width:0;height:0;overflow:hidden}.install-dialog{width:min(500px,calc(100% - 24px))}.install-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:16px 0 4px;border:1px solid var(--ink)}.install-tabs button{min-height:38px;padding:0 6px;color:var(--ink);background:transparent;border:0;font-size:12px;font-weight:850}.install-tabs button+button{border-left:1px solid var(--ink)}.install-tabs button[aria-pressed=true]{color:#fff;background:var(--ink)}.install-steps{margin:0;padding:0;list-style:none;counter-reset:install-step}.install-steps li{display:grid;grid-template-columns:84px minmax(0,1fr);align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);counter-increment:install-step}.install-steps li:last-child{border-bottom:0;padding-bottom:0}.install-shot{width:84px;height:auto;display:block;font-family:inherit}.install-shot .ip-hl{fill:none;stroke:var(--coral);stroke-width:2}.install-shot .ip-row{fill:color-mix(in srgb,var(--coral) 18%,transparent);stroke:var(--coral);stroke-width:1.2}.install-steps strong{display:block;margin-bottom:4px;font-size:15px;font-weight:900}.install-steps strong::before{content:counter(install-step);display:inline-grid;place-items:center;width:20px;height:20px;margin-right:8px;color:#fff;background:var(--coral);border-radius:50%;font:900 11px/1 ui-monospace,monospace;vertical-align:2px}.help-dialog .install-desktop{margin:14px 0 0;color:#4a4f62;font-weight:500}.install-desktop strong{color:var(--ink)}.install-desktop li+li{margin-top:6px}
 @media(max-width:800px){.site-header,.hero,.tool-card,.feature-strip,footer{width:calc(100% - 32px)}.hero{padding:42px 0 32px}.hero-grid{grid-template-columns:1fr;gap:30px}.lede{padding:6px 22px 6px 0;border-left:0;border-right:5px solid var(--coral);font-size:14px;text-align:right}.section-heading{padding:25px 20px}.mode-picker{padding:0 20px 24px}.mode-grid{grid-template-columns:1fr 1fr}.settings-layout{grid-template-columns:1fr}.settings-panel{border-right:0;border-bottom:1px solid var(--line)}.settings-panel,.start-panel{padding:24px 20px}.feature-strip{grid-template-columns:1fr}.feature-strip article+article{border-left:0;border-top:1px solid var(--line)}.timer-clock{font-size:clamp(80px,25vw,170px)}}
 @media(max-width:480px){.site-header{padding:12px 0 0}.status-pill{font-size:0}.status-pill i{width:9px;height:9px}.hero{padding:16px 0 18px}.eyebrow{margin-bottom:10px;font-size:10px}.hero-grid{gap:12px}h1{font-size:36px}h1 em{-webkit-text-stroke-width:1.5px;text-shadow:3px 3px 0 rgba(23,30,52,.1)}.lede{margin:0;padding:3px 16px 3px 0;border-right-width:4px;font-size:13px;line-height:1.6}.mode-grid{grid-template-columns:1fr}.mode-option span{padding:14px}.field-trio{grid-template-columns:1fr 1fr}.field-trio>div:last-child{grid-column:1/-1}.timer-view{min-height:100dvh;margin:0;border:0}.timer-topline{padding:15px 16px}.timer-stage{padding:16px}.timer-clock{font-size:clamp(72px,26vw,124px)}.timer-controls{padding-inline:12px}.control-button{padding-inline:14px}.control-button.primary{min-width:120px}}
 @media(max-width:480px){.sound-controls{gap:6px}.volume-label{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.volume-stepper{margin-left:auto}.volume-stepper button{width:30px}.volume-stepper input[type=number]{width:32px}.test-sound-button{padding:0 10px}}
@@ -536,7 +712,7 @@ EOF
 cat > "$project_dir/src/app.js" <<'EOF'
 import { createPlan, cueAt, displaySeconds, formatClock, shareText, snapshotAt, summarizeRun } from './timer-core.mjs';
 import { formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
-import { isBatteryLow } from './device.mjs';
+import { installButtonAction, installPlatform, isBatteryLow } from './device.mjs';
 
 const $ =(selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1349,17 +1525,46 @@ document.addEventListener('visibilitychange', () => {
   suspendWallClock();
 });
 
+function installAction() {
+  // iOS 從主畫面開啟時只有 navigator.standalone 為 true，其他平台看 display-mode。
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  return installButtonAction({ standalone, hasPrompt: Boolean(installPrompt) });
+}
+function updateInstallButton() {
+  $('#install-button').hidden = installAction() === 'hidden';
+}
+function showInstallPanel(platform) {
+  $$('[data-install-panel]').forEach((panel) => { panel.hidden = panel.dataset.installPanel !== platform; });
+  $$('[data-install-tab]').forEach((tab) => tab.setAttribute('aria-pressed', String(tab.dataset.installTab === platform)));
+}
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault();
   installPrompt = event;
-  $('#install-button').hidden = false;
+  updateInstallButton();
 });
-$('#install-button').addEventListener('click', async () => {
-  if (!installPrompt) return;
-  await installPrompt.prompt();
+window.addEventListener('appinstalled', () => {
   installPrompt = null;
   $('#install-button').hidden = true;
 });
+$('#install-button').addEventListener('click', async () => {
+  const action = installAction();
+  if (action === 'prompt') {
+    const prompt = installPrompt;
+    installPrompt = null;
+    await prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    if (outcome === 'accepted') $('#install-button').hidden = true;
+    return;
+  }
+  if (action !== 'guide') return;
+  showInstallPanel(installPlatform(navigator));
+  $('#install-dialog').showModal();
+});
+$$('[data-install-tab]').forEach((tab) => tab.addEventListener('click', () => showInstallPanel(tab.dataset.installTab)));
+$('#install-dialog').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
+});
+updateInstallButton();
 
 if ('serviceWorker' in navigator) {
   let serviceWorkerRefreshPending = false;
@@ -1868,7 +2073,7 @@ AAAAAElFTkSuQmCC
 EOF
 
 cat > "$project_dir/public/sw.js" <<'EOF'
-const CACHE_NAME = 'box-clock-v28';
+const CACHE_NAME = 'box-clock-v29';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './timer-core.mjs', './run-state.mjs', './device.mjs', './timer-worker.js', './manifest.webmanifest', './icon.svg', './icon-maskable.svg', './apple-touch-icon.png', './jerry.png'];
 
 self.addEventListener('install', (event) => {
@@ -2199,7 +2404,7 @@ EOF
 cat > "$project_dir/tests/device.test.mjs" <<'EOF'
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isBatteryLow } from '../src/device.mjs';
+import { installButtonAction, installPlatform, isBatteryLow } from '../src/device.mjs';
 
 test('battery below 30 percent and not charging is low', () => {
   assert.equal(isBatteryLow({ level: 0.29, charging: false }), true);
@@ -2213,6 +2418,34 @@ test('battery at or above 30 percent is not low', () => {
 
 test('charging battery is not low', () => {
   assert.equal(isBatteryLow({ level: 0.1, charging: true }), false);
+});
+
+test('install button is hidden when already running as an installed app', () => {
+  assert.equal(installButtonAction({ standalone: true, hasPrompt: false }), 'hidden');
+  assert.equal(installButtonAction({ standalone: true, hasPrompt: true }), 'hidden');
+});
+
+test('install button prompts when the browser offers one-tap install', () => {
+  assert.equal(installButtonAction({ standalone: false, hasPrompt: true }), 'prompt');
+});
+
+test('install button opens the guide when the browser has no install prompt', () => {
+  assert.equal(installButtonAction({ standalone: false, hasPrompt: false }), 'guide');
+});
+
+test('iPhone and iPad user agents use the iOS install guide', () => {
+  assert.equal(installPlatform({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1', maxTouchPoints: 5 }), 'ios');
+  assert.equal(installPlatform({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/141.0.7390.41 Mobile/15E148 Safari/604.1', maxTouchPoints: 5 }), 'ios');
+  assert.equal(installPlatform({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15', maxTouchPoints: 5 }), 'ios');
+});
+
+test('Android user agents use the Android install guide', () => {
+  assert.equal(installPlatform({ userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36', maxTouchPoints: 5 }), 'android');
+});
+
+test('desktop user agents use the desktop install guide', () => {
+  assert.equal(installPlatform({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15', maxTouchPoints: 0 }), 'desktop');
+  assert.equal(installPlatform({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', maxTouchPoints: 0 }), 'desktop');
 });
 EOF
 

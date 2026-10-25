@@ -33,7 +33,7 @@ grep -q 'function soundOutputGain' dist/app.js
 grep -q 'createDynamicsCompressor' dist/app.js
 grep -q 'function updateSoundToggleLabel' dist/app.js
 grep -q 'networkFirst' dist/sw.js
-grep -q "box-clock-v28" dist/sw.js
+grep -q "box-clock-v29" dist/sw.js
 ! grep -q 'id="sound-button"' dist/index.html
 ! grep -q 'id="fullscreen-button"' dist/index.html
 ! grep -q "#sound-button" dist/app.js
@@ -66,5 +66,9 @@ head -c 26 dist/apple-touch-icon.png | od -An -tx1 | tr -d ' \n' | grep -q '^895
 grep -q 'id="mode-guide-dialog"' dist/index.html
 grep -q 'href="https://github.com/lazyjerry/box-clock-crossfit-timer"' dist/index.html
 grep -q "'./jerry.png'" dist/sw.js
+grep -q 'id="install-dialog"' dist/index.html
+grep -q 'data-install-panel="ios"' dist/index.html
+grep -q "matchMedia('(display-mode: standalone)')" dist/app.js
+grep -q 'navigator.standalone === true' dist/app.js
 
 printf 'Verification passed: tests, PWA shell, worker, Wake Lock, normalized 50 percent device-volume audio, locale, and artifact extensions.\n'
