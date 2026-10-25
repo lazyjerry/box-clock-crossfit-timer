@@ -1,0 +1,15 @@
+{
+  "name": "BOX CLOCK｜CrossFit 間歇計時器",
+  "short_name": "BOX CLOCK",
+  "description": "AMRAP、EMOM、Tabata 與 For Time 離線間歇計時器",
+  "lang": "zh-Hant-TW",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f3ed",
+  "theme_color": "#171e34",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

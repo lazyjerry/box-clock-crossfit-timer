@@ -1,0 +1,12 @@
+{
+  "name": "crossfit-interval-timer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "build": "sh scripts/build.sh",
+    "verify": "sh scripts/verify.sh",
+    "deploy": "sh scripts/publish.sh"
+  }
+}
