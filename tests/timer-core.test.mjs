@@ -38,7 +38,7 @@ test('snapshot completes exactly at total duration', () => {
 });
 
 test('normalization rejects out-of-range values', () => {
-  assert.deepEqual(normalizeConfig({ mode: 'emom', prep: 99, rounds: 0, interval: 2 }), { mode: 'emom', prep: 10, rounds: 10, interval: 60 });
+  assert.deepEqual(normalizeConfig({ mode: 'emom', prep: 99, rounds: 0, interval: 0 }), { mode: 'emom', prep: 10, rounds: 10, interval: 60 });
 });
 
 test('display formatting uses ceil for countdown and floor-ready clock text', () => {
@@ -184,8 +184,22 @@ test('For Time ticks over the last three seconds before the cap', () => {
   assert.equal(cueAt(three.phase, three.phaseRemainingMs, { index: 0, remainingMs: 3016 }), 'tick');
 });
 
-test('For Time accepts a cap as short as 30 seconds', () => {
-  assert.equal(normalizeConfig({ mode: 'fortime', prep: 0, cap: 30 }).cap, 30);
-  assert.equal(normalizeConfig({ mode: 'fortime', prep: 0, cap: 29 }).cap, 1200);
+test('For Time accepts a cap as short as 1 second', () => {
+  assert.equal(normalizeConfig({ mode: 'fortime', prep: 0, cap: 1 }).cap, 1);
   assert.equal(normalizeConfig({ mode: 'fortime', prep: 0, cap: 0 }).cap, 1200);
+});
+
+test('AMRAP accepts a duration as short as 1 second', () => {
+  assert.equal(normalizeConfig({ mode: 'amrap', prep: 0, duration: 1 }).duration, 1);
+  assert.equal(normalizeConfig({ mode: 'amrap', prep: 0, duration: 0 }).duration, 720);
+});
+
+test('EMOM accepts one round of one second', () => {
+  assert.deepEqual(normalizeConfig({ mode: 'emom', prep: 0, rounds: 1, interval: 1 }), { mode: 'emom', prep: 0, rounds: 1, interval: 1 });
+  assert.equal(normalizeConfig({ mode: 'emom', prep: 0, rounds: 1, interval: 0 }).interval, 60);
+});
+
+test('Tabata accepts one round of one second with no rest', () => {
+  assert.deepEqual(normalizeConfig({ mode: 'tabata', prep: 0, rounds: 1, work: 1, rest: 0 }), { mode: 'tabata', prep: 0, rounds: 1, work: 1, rest: 0 });
+  assert.equal(normalizeConfig({ mode: 'tabata', prep: 0, rounds: 1, work: 0, rest: 0 }).work, 20);
 });

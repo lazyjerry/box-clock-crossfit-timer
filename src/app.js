@@ -126,8 +126,8 @@ function validateConfig(config) {
 }
 
 function durationError(config) {
-  if (config.mode === 'amrap' && config.duration < 60) return '訓練時間至少 1 分鐘。';
-  if (config.mode === 'fortime' && config.cap < 30) return '時間上限至少 30 秒。';
+  if (config.mode === 'amrap' && config.duration < 1) return '訓練時間至少 1 秒。';
+  if (config.mode === 'fortime' && config.cap < 1) return '時間上限至少 1 秒。';
   return '';
 }
 
@@ -590,6 +590,7 @@ function finishWorkout() {
 
 function openShare() {
   $('#share-status').textContent = '';
+  $('#share-exercise').placeholder = currentSummary.label === 'AMRAP' ? '例如：波比跳 x 3' : '例如：波比跳';
   $('#share-dialog').showModal();
 }
 
@@ -790,6 +791,13 @@ $('#test-sound-button').addEventListener('click', async () => {
 });
 $('#mode-help-button').addEventListener('click', openModeHelp);
 $('#mode-help-dialog').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
+});
+$('.footer-logo').addEventListener('click', (event) => {
+  event.preventDefault();
+  $('#mode-guide-dialog').showModal();
+});
+$('#mode-guide-dialog').addEventListener('click', (event) => {
   if (event.target === event.currentTarget) event.currentTarget.close();
 });
 document.addEventListener('visibilitychange', async () => {

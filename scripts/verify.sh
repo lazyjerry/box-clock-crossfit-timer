@@ -7,7 +7,7 @@ cd "$project_dir"
 node --test tests/*.test.mjs
 sh scripts/build.sh
 
-required_files='index.html styles.css app.js timer-core.mjs run-state.mjs device.mjs timer-worker.js manifest.webmanifest icon.svg icon-maskable.svg apple-touch-icon.png sw.js'
+required_files='index.html styles.css app.js timer-core.mjs run-state.mjs device.mjs timer-worker.js manifest.webmanifest icon.svg icon-maskable.svg apple-touch-icon.png jerry.png sw.js'
 for file in $required_files; do
   test -s "dist/$file" || { printf 'Missing build artifact: %s\n' "$file" >&2; exit 1; }
 done
@@ -33,7 +33,7 @@ grep -q 'function soundOutputGain' dist/app.js
 grep -q 'createDynamicsCompressor' dist/app.js
 grep -q 'function updateSoundToggleLabel' dist/app.js
 grep -q 'networkFirst' dist/sw.js
-grep -q "box-clock-v21" dist/sw.js
+grep -q "box-clock-v27" dist/sw.js
 ! grep -q 'id="sound-button"' dist/index.html
 ! grep -q 'id="fullscreen-button"' dist/index.html
 ! grep -q "#sound-button" dist/app.js
@@ -63,5 +63,8 @@ grep -q '"src": "./icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", 
 grep -q 'rel="apple-touch-icon" href="./apple-touch-icon.png"' dist/index.html
 grep -q "'./apple-touch-icon.png'" dist/sw.js
 head -c 26 dist/apple-touch-icon.png | od -An -tx1 | tr -d ' \n' | grep -q '^89504e470d0a1a0a0000000d49484452000000b4000000b40802$'
+grep -q 'id="mode-guide-dialog"' dist/index.html
+grep -q 'href="https://github.com/lazyjerry/box-clock-crossfit-timer"' dist/index.html
+grep -q "'./jerry.png'" dist/sw.js
 
 printf 'Verification passed: tests, PWA shell, worker, Wake Lock, normalized 50 percent device-volume audio, locale, and artifact extensions.\n'

@@ -24,7 +24,7 @@
     </header>
 
     <section class="hero" aria-labelledby="page-title">
-      <p class="eyebrow">CROSSFIT INTERVAL TIMER</p>
+      <p class="eyebrow">CROSSFIT &amp; SHADOWBOXING INTERVAL TIMER</p>
       <div class="hero-grid">
         <h1 id="page-title"><span>專心訓練</span><em>時間交給我</em></h1>
         <p class="lede">選模式、設時間、按開始。精準校時、離線可用、聲音提示與螢幕常亮都在瀏覽器完成。</p>
@@ -53,20 +53,20 @@
             <div class="panel-title"><div class="panel-heading"><span>時間設定</span><button id="mode-help-button" class="help-button" type="button" aria-haspopup="dialog" aria-controls="mode-help-dialog" aria-label="查看 FOR TIME 範例">?</button></div><small id="mode-description">由零開始正數計時；做完按「完成」，或到時間上限自動結束。</small></div>
 
             <div class="mode-settings" data-mode="amrap" hidden>
-              <div class="time-field"><label for="amrap-minutes">訓練時間</label><div><input id="amrap-minutes" name="amrapMinutes" type="number" min="1" max="99" value="12" inputmode="numeric" required><span>分</span><input id="amrap-seconds" name="amrapSeconds" type="number" min="0" max="59" value="0" inputmode="numeric" aria-label="AMRAP 秒數" required><span>秒</span></div></div>
+              <div class="time-field"><label for="amrap-minutes">訓練時間</label><div><input id="amrap-minutes" name="amrapMinutes" type="number" min="0" max="99" value="12" inputmode="numeric" required><span>分</span><input id="amrap-seconds" name="amrapSeconds" type="number" min="0" max="59" value="0" inputmode="numeric" aria-label="AMRAP 秒數" required><span>秒</span></div></div>
             </div>
 
             <div class="mode-settings" data-mode="emom" hidden>
               <div class="field-pair">
                 <div><label for="emom-rounds">總輪數</label><div class="unit-input"><input id="emom-rounds" name="emomRounds" type="number" min="1" max="99" value="10" inputmode="numeric" required><span>輪</span></div></div>
-                <div><label for="emom-interval">每輪間隔</label><div class="unit-input"><input id="emom-interval" name="emomInterval" type="number" min="10" max="900" value="60" inputmode="numeric" required><span>秒</span></div></div>
+                <div><label for="emom-interval">每輪間隔</label><div class="unit-input"><input id="emom-interval" name="emomInterval" type="number" min="1" max="900" value="60" inputmode="numeric" required><span>秒</span></div></div>
               </div>
             </div>
 
             <div class="mode-settings" data-mode="tabata" hidden>
               <div class="field-trio">
                 <div><label for="tabata-rounds">總輪數</label><div class="unit-input"><input id="tabata-rounds" name="tabataRounds" type="number" min="1" max="99" value="8" inputmode="numeric" required><span>輪</span></div></div>
-                <div><label for="tabata-work">動作</label><div class="unit-input"><input id="tabata-work" name="tabataWork" type="number" min="5" max="900" value="20" inputmode="numeric" required><span>秒</span></div></div>
+                <div><label for="tabata-work">動作</label><div class="unit-input"><input id="tabata-work" name="tabataWork" type="number" min="1" max="900" value="20" inputmode="numeric" required><span>秒</span></div></div>
                 <div><label for="tabata-rest">休息</label><div class="unit-input"><input id="tabata-rest" name="tabataRest" type="number" min="0" max="900" value="10" inputmode="numeric" required><span>秒</span></div></div>
               </div>
             </div>
@@ -188,7 +188,32 @@
       <article><span>03</span><div><strong>保持清醒</strong><p>計時中自動申請 Wake Lock，減少螢幕熄滅。</p></div></article>
     </section>
 
-    <footer>BOX CLOCK <span>·</span> LOCAL ONLY <span>·</span> NO ACCOUNT <span>·</span> NO WORKOUT HISTORY</footer>
+    <footer><p>BOX&nbsp;CLOCK <span>·</span> LOCAL&nbsp;ONLY <span>·</span> NO&nbsp;ACCOUNT <span>·</span> <span class="footer-end">NO&nbsp;WORKOUT&nbsp;HISTORY<a class="footer-logo" href="#mode-guide-dialog" aria-haspopup="dialog" aria-controls="mode-guide-dialog"><img src="./jerry.png" width="14" height="14" alt="四種訓練模式說明"></a></span></p></footer>
+
+    <dialog id="mode-guide-dialog" class="help-dialog guide-dialog" aria-labelledby="mode-guide-title">
+      <form method="dialog">
+        <div class="help-dialog-head"><h3 id="mode-guide-title">四種訓練模式</h3><button class="help-close" type="submit" aria-label="關閉">×</button></div>
+        <p>差別在「時間怎麼走」與「成績怎麼算」：FOR TIME 份量固定、比快，AMRAP 時間固定、比多；EMOM 與 TABATA 都由計時器切換節奏，EMOM 做得越快休息越久，TABATA 的休息固定 10 秒。</p>
+        <dl class="guide-list">
+          <dt>FOR TIME<small>份量固定，越快越好</small></dt>
+          <dd>做完指定的動作與次數，例如 Fran、Murph。由 00:00 正數，做完按「完成」，成績是完成時間；可設時間上限。</dd>
+          <dt>AMRAP<small>時間固定，越多越好</small></dt>
+          <dd>As Many Rounds/Reps As Possible。在倒數時間內循環動作，成績是完成輪數加次數，例如 Cindy。</dd>
+          <dt>EMOM<small>每個間隔開始一輪</small></dt>
+          <dd>Every Minute On the Minute。每個間隔一開始做指定次數，剩下的秒數是休息；適合練技巧與控制配速。</dd>
+          <dt>TABATA<small>動作 20 秒、休息 10 秒 × 8 輪</small></dt>
+          <dd>共 4 分鐘的高強度間歇，常搭配單一動作。動作與休息自動切換，記下每輪次數，以最少的一輪為成績。</dd>
+        </dl>
+        <h4>官方說明</h4>
+        <ul>
+          <li><a href="https://www.crossfit.com/essentials/crossfit-terms-explained" target="_blank" rel="noopener noreferrer">CrossFit Terms Explained</a>：AMRAP、EMOM、Tabata 的定義</li>
+          <li><a href="https://www.crossfit.com/essentials/crossfit-intentional-programming" target="_blank" rel="noopener noreferrer">CrossFit：The Four Formats</a>：Chipper、Rounds for Time 等 For Time 格式與間歇</li>
+          <li><a href="https://pubmed.ncbi.nlm.nih.gov/8897392/" target="_blank" rel="noopener noreferrer">Tabata et al., 1996</a>：20／10 秒間歇的原始研究</li>
+          <li><a href="https://www.hpa.gov.tw/Pages/Detail.aspx?nodeid=825&amp;pid=14209" target="_blank" rel="noopener noreferrer">國民健康署：高強度間歇運動</a>：HIIT 的效果，以及循序漸進、暖身與教練指導等安全提醒</li>
+        </ul>
+        <p class="guide-source">原始碼：<a href="https://github.com/lazyjerry/box-clock-crossfit-timer" target="_blank" rel="noopener noreferrer">github.com/lazyjerry/box-clock-crossfit-timer</a></p>
+      </form>
+    </dialog>
   </main>
   <script type="module" src="./app.js"></script>
 </body>

@@ -13,21 +13,21 @@ const clampInteger = (value, min, max, fallback) => {
 export function normalizeConfig(raw = {}) {
   const mode = ['amrap', 'emom', 'tabata', 'fortime'].includes(raw.mode) ? raw.mode : 'amrap';
   const prep = clampInteger(raw.prep, 0, 15, 10);
-  if (mode === 'amrap') return { mode, prep, duration: clampInteger(raw.duration, 60, 99 * 60 + 59, MODE_DEFAULTS.amrap.duration) };
+  if (mode === 'amrap') return { mode, prep, duration: clampInteger(raw.duration, 1, 99 * 60 + 59, MODE_DEFAULTS.amrap.duration) };
   if (mode === 'emom') return {
     mode,
     prep,
     rounds: clampInteger(raw.rounds, 1, 99, MODE_DEFAULTS.emom.rounds),
-    interval: clampInteger(raw.interval, 10, 15 * 60, MODE_DEFAULTS.emom.interval)
+    interval: clampInteger(raw.interval, 1, 15 * 60, MODE_DEFAULTS.emom.interval)
   };
   if (mode === 'tabata') return {
     mode,
     prep,
     rounds: clampInteger(raw.rounds, 1, 99, MODE_DEFAULTS.tabata.rounds),
-    work: clampInteger(raw.work, 5, 15 * 60, MODE_DEFAULTS.tabata.work),
+    work: clampInteger(raw.work, 1, 15 * 60, MODE_DEFAULTS.tabata.work),
     rest: clampInteger(raw.rest, 0, 15 * 60, MODE_DEFAULTS.tabata.rest)
   };
-  return { mode, prep, cap: clampInteger(raw.cap, 30, 99 * 60 + 59, MODE_DEFAULTS.fortime.cap) };
+  return { mode, prep, cap: clampInteger(raw.cap, 1, 99 * 60 + 59, MODE_DEFAULTS.fortime.cap) };
 }
 
 export function createPlan(rawConfig) {
