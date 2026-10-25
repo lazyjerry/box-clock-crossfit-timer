@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
 const run = promisify(execFile);
 
 const VIEWPORT = { width: 390, height: 844 };
-const GIF_WIDTH = 360;
+const GIF_WIDTH = VIEWPORT.width;
 const GIF_FPS = 12;
 
 // 點擊位置畫一個淡出的圓圈。用 popover 進 top layer，才不會被 showModal 的對話框蓋住。
@@ -124,7 +124,8 @@ async function record(browser, scene) {
     timezoneId: 'Asia/Taipei',
     serviceWorkers: 'block',
     permissions: ['clipboard-read', 'clipboard-write'],
-    recordVideo: { dir: videoDir, size: { width: VIEWPORT.width * 2, height: VIEWPORT.height * 2 } }
+    // 錄影畫格是 CSS 像素大小，size 設得比 viewport 大只會在右下補灰底，不會變清晰
+    recordVideo: { dir: videoDir, size: VIEWPORT }
   });
   await context.addInitScript(showTaps);
   await context.addInitScript(grantWakeLock);
