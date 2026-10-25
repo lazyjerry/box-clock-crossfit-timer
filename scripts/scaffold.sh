@@ -314,7 +314,7 @@ cat > "$project_dir/src/index.html" <<'EOF'
 <html lang="zh-Hant-TW">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#171e34">
   <meta name="description" content="支援 AMRAP、EMOM、Tabata 與 For Time 的 CrossFit 離線間歇計時器。">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -714,6 +714,7 @@ body.timer-running{background:var(--ink)}body.timer-running main{min-height:0;pa
 @media(max-width:340px){.sound-controls{gap:4px}.volume-stepper button{width:28px}.volume-stepper span{padding-right:2px}}
 @media(orientation:landscape) and (max-height:620px){.timer-stage{padding:10px}.timer-phase{font-size:22px}.timer-clock{font-size:min(34vh,180px)}.progress-track{margin:14px 0 12px}.round-display{font-size:20px}.next-display{margin-top:4px}.timer-controls{padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom))}.control-button{min-height:42px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+html{touch-action:pan-x pan-y}
 .help-dialog[open]{display:flex;flex-direction:column;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:hidden}.help-dialog form{min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 EOF
 
@@ -1540,6 +1541,8 @@ document.addEventListener('visibilitychange', () => {
   suspendWallClock();
   releaseAudio();
 });
+// iOS Safari 不理 viewport 的 user-scalable=no，捏合縮放要在 WebKit 專屬的 gesture 事件擋掉。
+['gesturestart', 'gesturechange'].forEach((type) => document.addEventListener(type, (event) => event.preventDefault()));
 
 function installAction() {
   // iOS 從主畫面開啟時只有 navigator.standalone 為 true，其他平台看 display-mode。
@@ -2089,7 +2092,7 @@ AAAAAElFTkSuQmCC
 EOF
 
 cat > "$project_dir/public/sw.js" <<'EOF'
-const CACHE_NAME = 'box-clock-v31';
+const CACHE_NAME = 'box-clock-v32';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './timer-core.mjs', './run-state.mjs', './device.mjs', './timer-worker.js', './manifest.webmanifest', './icon.svg', './icon-maskable.svg', './apple-touch-icon.png', './jerry.png'];
 
 self.addEventListener('install', (event) => {

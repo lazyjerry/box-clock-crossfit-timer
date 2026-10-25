@@ -13,4 +13,5 @@ body.timer-running{background:var(--ink)}body.timer-running main{min-height:0;pa
 @media(max-width:340px){.sound-controls{gap:4px}.volume-stepper button{width:28px}.volume-stepper span{padding-right:2px}}
 @media(orientation:landscape) and (max-height:620px){.timer-stage{padding:10px}.timer-phase{font-size:22px}.timer-clock{font-size:min(34vh,180px)}.progress-track{margin:14px 0 12px}.round-display{font-size:20px}.next-display{margin-top:4px}.timer-controls{padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom))}.control-button{min-height:42px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+html{touch-action:pan-x pan-y}
 .help-dialog[open]{display:flex;flex-direction:column;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:hidden}.help-dialog form{min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}

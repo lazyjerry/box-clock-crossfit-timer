@@ -1,4 +1,4 @@
-const CACHE_NAME = 'box-clock-v31';
+const CACHE_NAME = 'box-clock-v32';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './timer-core.mjs', './run-state.mjs', './device.mjs', './timer-worker.js', './manifest.webmanifest', './icon.svg', './icon-maskable.svg', './apple-touch-icon.png', './jerry.png'];
 
 self.addEventListener('install', (event) => {

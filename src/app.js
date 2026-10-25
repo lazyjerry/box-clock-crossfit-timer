@@ -820,6 +820,8 @@ document.addEventListener('visibilitychange', () => {
   suspendWallClock();
   releaseAudio();
 });
+// iOS Safari 不理 viewport 的 user-scalable=no，捏合縮放要在 WebKit 專屬的 gesture 事件擋掉。
+['gesturestart', 'gesturechange'].forEach((type) => document.addEventListener(type, (event) => event.preventDefault()));
 
 function installAction() {
   // iOS 從主畫面開啟時只有 navigator.standalone 為 true，其他平台看 display-mode。
