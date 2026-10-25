@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRunClock, restoreRun, resumeAudio, serializeRun } from '../src/run-state.mjs';
+import { createRunClock, formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from '../src/run-state.mjs';
 
 function fakeNow(start = 1000) {
   let value = start;
@@ -77,4 +77,15 @@ test('audio interrupted while away is resumed', async () => {
 test('audio that cannot resume reports false instead of throwing', async () => {
   assert.equal(await resumeAudio(fakeAudioContext('suspended', { rejects: true })), false);
   assert.equal(await resumeAudio(null), false);
+});
+
+test('time of day shows hours, minutes and seconds', () => {
+  assert.equal(formatTimeOfDay(new Date(2026, 9, 25, 14, 20, 5)), '14:20:05');
+  assert.equal(formatTimeOfDay(new Date(2026, 9, 25, 9, 3, 59)), '09:03:59');
+});
+
+test('wall clock waits until the next whole second', () => {
+  assert.equal(msUntilNextSecond(1761373205250), 750);
+  assert.equal(msUntilNextSecond(1761373205999), 1);
+  assert.equal(msUntilNextSecond(1761373206000), 1000);
 });

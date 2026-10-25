@@ -58,3 +58,11 @@ export async function resumeAudio(context) {
   }
   return context.state === 'running';
 }
+
+export function formatTimeOfDay(date) {
+  return [date.getHours(), date.getMinutes(), date.getSeconds()].map((part) => String(part).padStart(2, '0')).join(':');
+}
+
+export function msUntilNextSecond(epochMs) {
+  return 1000 - (epochMs % 1000);
+}

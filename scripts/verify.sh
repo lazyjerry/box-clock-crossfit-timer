@@ -7,12 +7,12 @@ cd "$project_dir"
 node --test tests/*.test.mjs
 sh scripts/build.sh
 
-required_files='index.html styles.css app.js timer-core.mjs run-state.mjs timer-worker.js manifest.webmanifest icon.svg sw.js'
+required_files='index.html styles.css app.js timer-core.mjs run-state.mjs device.mjs timer-worker.js manifest.webmanifest icon.svg icon-maskable.svg apple-touch-icon.png sw.js'
 for file in $required_files; do
   test -s "dist/$file" || { printf 'Missing build artifact: %s\n' "$file" >&2; exit 1; }
 done
 
-if find dist -type f ! \( -name '*.html' -o -name '*.css' -o -name '*.js' -o -name '*.mjs' -o -name '*.webmanifest' -o -name '*.svg' \) -print | grep -q .; then
+if find dist -type f ! \( -name '*.html' -o -name '*.css' -o -name '*.js' -o -name '*.mjs' -o -name '*.webmanifest' -o -name '*.svg' -o -name '*.png' \) -print | grep -q .; then
   printf 'Build contains an unsupported extension.\n' >&2
   exit 1
 fi
@@ -33,7 +33,7 @@ grep -q 'function soundOutputGain' dist/app.js
 grep -q 'createDynamicsCompressor' dist/app.js
 grep -q 'function updateSoundToggleLabel' dist/app.js
 grep -q 'networkFirst' dist/sw.js
-grep -q "box-clock-v12" dist/sw.js
+grep -q "box-clock-v21" dist/sw.js
 ! grep -q 'id="sound-button"' dist/index.html
 ! grep -q 'id="fullscreen-button"' dist/index.html
 ! grep -q "#sound-button" dist/app.js
@@ -51,8 +51,17 @@ grep -q 'function pauseForBackground' dist/app.js
 grep -q 'restoreSavedRun();' dist/app.js
 grep -q "addEventListener('click', finishWorkout)" dist/app.js
 grep -q 'id="share-button"' dist/index.html
-grep -q 'id="wake-dialog"' dist/index.html
+grep -q 'id="warning-dialog"' dist/index.html
+grep -q 'id="battery-warning-text"' dist/index.html
+grep -q 'navigator.getBattery()' dist/app.js
+grep -q "'./device.mjs'" dist/sw.js
 grep -q 'function renderShareImage' dist/app.js
 grep -q 'function startWallClock' dist/app.js
+grep -q '"src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }' dist/manifest.webmanifest
+grep -q '"src": "./icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }' dist/manifest.webmanifest
+! grep -q '<rect width="512" height="512" rx=' dist/icon-maskable.svg
+grep -q 'rel="apple-touch-icon" href="./apple-touch-icon.png"' dist/index.html
+grep -q "'./apple-touch-icon.png'" dist/sw.js
+head -c 26 dist/apple-touch-icon.png | od -An -tx1 | tr -d ' \n' | grep -q '^89504e470d0a1a0a0000000d49484452000000b4000000b40802$'
 
 printf 'Verification passed: tests, PWA shell, worker, Wake Lock, normalized 50 percent device-volume audio, locale, and artifact extensions.\n'

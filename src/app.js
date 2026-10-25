@@ -1,5 +1,6 @@
-import { createPlan, displaySeconds, formatClock, shareText, snapshotAt, summarizeRun } from './timer-core.mjs';
-import { restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
+import { createPlan, cueAt, displaySeconds, formatClock, shareText, snapshotAt, summarizeRun } from './timer-core.mjs';
+import { formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
+import { isBatteryLow } from './device.mjs';
 
 const $ =(selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -70,6 +71,8 @@ const PRESETS = {
     { label: '40／20 × 6', values: { tabataRounds: 6, tabataWork: 40, tabataRest: 20 } }
   ],
   fortime: [
+    { label: '上限 2 分', values: { fortimeMinutes: 2, fortimeSeconds: 0 } },
+    { label: '上限 3 分', values: { fortimeMinutes: 3, fortimeSeconds: 0 } },
     { label: '上限 10 分', values: { fortimeMinutes: 10, fortimeSeconds: 0 } },
     { label: '上限 20 分', values: { fortimeMinutes: 20, fortimeSeconds: 0 } },
     { label: '上限 30 分', values: { fortimeMinutes: 30, fortimeSeconds: 0 } }
@@ -90,11 +93,13 @@ let runId = 0;
 let soundEnabled = true;
 let soundVolume = 0.5;
 let previousPhaseIndex = -1;
-let previousCueSecond = null;
+let lastCue = null;
+let noiseBuffer = null;
 let installPrompt = null;
 let wakeStatus = { text: '螢幕常亮：準備中', failed: false };
 let wakeWarned = false;
 let wallClockHandle = null;
+let wallClockActive = false;
 let currentSummary = null;
 let shareContent = null;
 
@@ -117,12 +122,19 @@ function validateConfig(config) {
     invalidField.focus();
     return invalidField.validationMessage || '請檢查時間設定。';
   }
-  const primaryDuration = config.duration ?? config.cap;
-  if ((config.mode === 'amrap' || config.mode === 'fortime') && primaryDuration < 60) return '訓練時間至少 1 分鐘。';
+  return durationError(config);
+}
+
+function durationError(config) {
+  if (config.mode === 'amrap' && config.duration < 60) return '訓練時間至少 1 分鐘。';
+  if (config.mode === 'fortime' && config.cap < 30) return '時間上限至少 30 秒。';
   return '';
 }
 
 function summaryText(config) {
+  const fieldsValid = $$('[data-mode]:not([hidden]) input').every((input) => input.checkValidity());
+  const issue = fieldsValid ? durationError(config) : '請檢查時間設定。';
+  if (issue) return `<strong>${MODE_META[config.mode].label} · 時間未設定完成</strong>${issue}`;
   const prep = config.prep ? ` · 準備 ${config.prep} 秒` : ' · 直接開始';
   if (config.mode === 'amrap') return `<strong>AMRAP · ${formatClock(config.duration)}</strong>固定時間倒數${prep}`;
   if (config.mode === 'emom') return `<strong>EMOM · ${config.rounds} 輪</strong>每輪 ${formatClock(config.interval)}${prep}`;
@@ -164,6 +176,7 @@ function collectFields(fields) {
 function saveSettings() {
   const settings = { shared: collectFields($$(SHARED_FIELDS)), modes: {} };
   $$('[data-mode]').forEach((panel) => { settings.modes[panel.dataset.mode] = collectFields($$(MODE_FIELDS, panel)); });
+  settings.mode = form.elements.mode.value;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch {}
@@ -193,6 +206,8 @@ function loadSettings() {
   if (!settings || typeof settings !== 'object') return;
   restoreFields($$(SHARED_FIELDS), settings.shared);
   $$('[data-mode]').forEach((panel) => restoreFields($$(MODE_FIELDS, panel), settings.modes?.[panel.dataset.mode]));
+  // 不在選項內的值不會勾到任何 radio，維持 HTML 預設勾選
+  if (typeof settings.mode === 'string') form.elements.mode.value = settings.mode;
 }
 
 function openModeHelp() {
@@ -238,34 +253,86 @@ function applySoundVolume() {
   audioOutput.gain.setTargetAtTime(soundOutputGain(), audioContext.currentTime, 0.01);
 }
 
-function tone(frequency, duration = 0.12, delay = 0, gain = 0.32, force = false) {
-  if ((!soundEnabled && !force) || !audioContext) return;
-  const start = audioContext.currentTime + delay;
-  const oscillator = audioContext.createOscillator();
-  const volume = audioContext.createGain();
-  oscillator.type = 'square';
-  oscillator.frequency.setValueAtTime(frequency, start);
-  volume.gain.setValueAtTime(0.0001, start);
-  volume.gain.exponentialRampToValueAtTime(gain, start + 0.01);
-  volume.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  oscillator.connect(volume).connect(audioOutput || audioContext.destination);
-  oscillator.start(start);
-  oscillator.stop(start + duration + 0.02);
+// Boxing bell: inharmonic partials with a fast strike and a long ring; [ratio, gain, decay seconds].
+const BELL_HZ = 880;
+const BELL_PARTIALS = [[0.5, 0.06, 1.8], [1, 0.26, 1.5], [2.76, 0.12, 0.8], [5.4, 0.06, 0.4], [8.93, 0.03, 0.2]];
+
+function canPlay(force) {
+  return (soundEnabled || force) && audioContext !== null;
 }
 
-function playTransition(kind) {
-  if (kind === 'rest') { tone(440, 0.16); tone(330, 0.18, 0.18); }
-  else { tone(740, 0.14); tone(980, 0.2, 0.16); }
+function ring(frequency, start, gain, decay, type = 'sine') {
+  const oscillator = audioContext.createOscillator();
+  const volume = audioContext.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, start);
+  volume.gain.setValueAtTime(0.0001, start);
+  volume.gain.exponentialRampToValueAtTime(gain, start + 0.004);
+  volume.gain.exponentialRampToValueAtTime(0.0001, start + decay);
+  oscillator.connect(volume).connect(audioOutput);
+  oscillator.start(start);
+  oscillator.stop(start + decay + 0.02);
+}
+
+function knock(start, gain, frequency, decay) {
+  if (!noiseBuffer) {
+    noiseBuffer = audioContext.createBuffer(1, Math.round(audioContext.sampleRate * 0.2), audioContext.sampleRate);
+    const samples = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < samples.length; i += 1) samples[i] = Math.random() * 2 - 1;
+  }
+  const source = audioContext.createBufferSource();
+  const filter = audioContext.createBiquadFilter();
+  const volume = audioContext.createGain();
+  source.buffer = noiseBuffer;
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(frequency, start);
+  filter.Q.setValueAtTime(3, start);
+  volume.gain.setValueAtTime(gain, start);
+  volume.gain.exponentialRampToValueAtTime(0.0001, start + decay);
+  source.connect(filter).connect(volume).connect(audioOutput);
+  source.start(start);
+  source.stop(start + decay + 0.02);
+}
+
+function strikeBell(delay, strength, sustain) {
+  const start = audioContext.currentTime + delay;
+  knock(start, 0.18 * strength, 3000, 0.03);
+  for (const [ratio, gain, decay] of BELL_PARTIALS) ring(BELL_HZ * ratio, start, gain * strength, decay * sustain);
+}
+
+function playBell(times, { spacing = 0.3, strength = 1, sustain = 1, force = false } = {}) {
+  if (!canPlay(force)) return;
+  for (let hit = 0; hit < times; hit += 1) strikeBell(hit * spacing, strength, sustain);
+}
+
+function woodHit(start) {
+  knock(start, 0.5, 1600, 0.06);
+  ring(620, start, 0.1, 0.05, 'triangle');
+}
+
+function playClapper() {
+  if (!canPlay(false)) return;
+  for (const delay of [0, 0.14, 0.28]) woodHit(audioContext.currentTime + delay);
+}
+
+function playTick() {
+  if (!canPlay(false)) return;
+  woodHit(audioContext.currentTime);
+}
+
+function playCue(cue) {
+  if (cue === 'round-start') playBell(1);
+  else if (cue === 'round-end') playBell(3);
+  else if (cue === 'warning') playClapper();
+  else if (cue === 'tick') playTick();
 }
 
 function playComplete() {
-  tone(660, 0.16); tone(880, 0.16, 0.2); tone(1100, 0.34, 0.4);
+  playBell(3, { spacing: 0.42, strength: 1.25, sustain: 1.6 });
 }
 
 function playSoundPreview() {
-  tone(523, 0.12, 0, 0.3, true);
-  tone(659, 0.12, 0.16, 0.3, true);
-  tone(784, 0.24, 0.32, 0.34, true);
+  playBell(3, { force: true });
 }
 
 function normalizeSoundVolume() {
@@ -317,11 +384,7 @@ async function requestWakeLock() {
 
 function setWakeStatus(text, failed = false) {
   wakeStatus = { text, failed };
-  if (wallClockHandle === null) renderWakeStatus();
-  if (failed && !wakeWarned && !timerView.hidden) {
-    wakeWarned = true;
-    $('#wake-dialog').showModal();
-  }
+  if (!wallClockActive) renderWakeStatus();
 }
 
 function renderWakeStatus() {
@@ -329,26 +392,56 @@ function renderWakeStatus() {
   $('#wake-status').classList.toggle('wake-warning', wakeStatus.failed);
 }
 
+function tickWallClock() {
+  const now = Date.now();
+  $('#wake-status').textContent = formatTimeOfDay(new Date(now));
+  clearTimeout(wallClockHandle);
+  wallClockHandle = setTimeout(tickWallClock, msUntilNextSecond(now));
+}
+
 function startWallClock() {
-  if (wallClockHandle !== null) return;
-  const tick = () => {
-    const now = new Date();
-    $('#wake-status').textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  };
+  if (wallClockActive) return;
+  wallClockActive = true;
   $('#wake-status').classList.remove('wake-warning');
-  tick();
-  wallClockHandle = setInterval(tick, 1000);
+  tickWallClock();
+}
+
+function suspendWallClock() {
+  clearTimeout(wallClockHandle);
+  wallClockHandle = null;
 }
 
 function stopWallClock() {
-  if (wallClockHandle !== null) clearInterval(wallClockHandle);
-  wallClockHandle = null;
+  wallClockActive = false;
+  suspendWallClock();
   renderWakeStatus();
 }
 
 async function releaseWakeLock() {
   if (wakeLock) await wakeLock.release().catch(() => {});
   wakeLock = null;
+}
+
+async function readBattery() {
+  if (!('getBattery' in navigator)) return null;
+  try {
+    return await navigator.getBattery();
+  } catch {
+    return null;
+  }
+}
+
+async function checkDeviceWarnings({ battery = false } = {}) {
+  const [, status] = await Promise.all([requestWakeLock(), battery ? readBattery() : null]);
+  const wake = wakeStatus.failed && !wakeWarned;
+  const lowBattery = Boolean(status) && isBatteryLow(status);
+  if (timerView.hidden || !(wake || lowBattery)) return;
+  if (wake) wakeWarned = true;
+  $('#wake-warning-text').hidden = !wake;
+  $('#battery-warning-text').hidden = !lowBattery;
+  if (lowBattery) $('#battery-level').textContent = `${Math.round(status.level * 100)}%`;
+  $('#warning-dialog-title').textContent = wake && lowBattery ? '開始前請注意' : wake ? '螢幕可能會自動關閉' : '電量偏低';
+  if (!$('#warning-dialog').open) $('#warning-dialog').showModal();
 }
 
 function phaseAfter(index) {
@@ -376,16 +469,15 @@ function renderSnapshot(snapshot) {
   $('#next-display').textContent = next ? `接下來 · ${next.label}${next.totalRounds > 1 ? ` ${next.round}` : ''}` : (isCountup ? '時間上限到會自動結束' : '最後一段');
   $('#finish-button').hidden = currentMode !== 'fortime' || phase.kind === 'prepare' || !isRunning;
 
-  const cueSecond = displaySeconds(snapshot.phaseRemainingMs);
   if (phase.index !== previousPhaseIndex) {
-    if (previousPhaseIndex >= 0) playTransition(phase.kind);
     $('#timer-live').textContent = `${phase.label}${phase.totalRounds > 1 ? `，第 ${phase.round} 輪` : ''}`;
     previousPhaseIndex = phase.index;
-    previousCueSecond = null;
   }
-  if (isRunning && !isPaused && cueSecond <= 3 && cueSecond > 0 && cueSecond !== previousCueSecond) {
-    tone(cueSecond === 1 ? 920 : 620, 0.13);
-    previousCueSecond = cueSecond;
+  // Paused snapshots (including a restored run) only move the cue position, so resuming never rings.
+  if (isRunning) {
+    const cue = cueAt(phase, snapshot.phaseRemainingMs, lastCue);
+    if (!isPaused) playCue(cue);
+    lastCue = { index: phase.index, remainingMs: snapshot.phaseRemainingMs };
   }
 }
 
@@ -407,7 +499,7 @@ async function startWorkout(event) {
   showTimerView();
   resetTimer();
   wakeWarned = false;
-  await requestWakeLock();
+  await checkDeviceWarnings({ battery: true });
 }
 
 function showTimerView() {
@@ -450,7 +542,7 @@ function resetTimer() {
   stopWallClock();
   clearRun();
   previousPhaseIndex = -1;
-  previousCueSecond = null;
+  lastCue = null;
   $('#start-button').textContent = '開始';
   renderSnapshot(snapshotAt(currentPlan, 0));
 }
@@ -553,7 +645,7 @@ async function showSharePreview(event) {
   saveSettings();
   const blob = await renderShareImage(exercise);
   if (shareContent) URL.revokeObjectURL(shareContent.url);
-  shareContent = { text: shareText(currentSummary, exercise), url: URL.createObjectURL(blob) };
+  shareContent = { text: shareText(currentSummary, exercise), url: URL.createObjectURL(blob), file: new File([blob], 'box-clock.png', { type: 'image/png' }) };
   $('#share-preview-image').src = shareContent.url;
   $('#share-preview-text').textContent = shareContent.text;
   $('#share-dialog').close();
@@ -566,6 +658,18 @@ async function copyResultText() {
     $('#share-status').textContent = '已複製文字，可以貼到任何地方';
   } catch {
     $('#share-status').textContent = '無法複製，請長按上方文字手動複製';
+  }
+}
+
+async function shareImage() {
+  if (!navigator.canShare?.({ files: [shareContent.file] })) {
+    $('#share-status').textContent = '此裝置不支援分享圖片，請改用「下載浮水印」';
+    return;
+  }
+  try {
+    await navigator.share({ files: [shareContent.file] });
+  } catch (error) {
+    if (error.name !== 'AbortError') $('#share-status').textContent = '無法開啟分享，請改用「下載浮水印」';
   }
 }
 
@@ -625,13 +729,13 @@ function restoreSavedRun() {
   isRunning = true;
   isPaused = true;
   previousPhaseIndex = -1;
-  previousCueSecond = null;
+  lastCue = null;
   runId += 1;
   worker.postMessage({ type: 'start', config: currentConfig, runId, elapsedMs: saved.elapsedMs, paused: true });
   startWallClock();
   $('#start-button').textContent = '繼續';
   $('#timer-live').textContent = '已還原上次暫停的訓練，按「繼續」接著計時';
-  requestWakeLock();
+  checkDeviceWarnings({ battery: true });
 }
 
 worker.addEventListener('message', ({ data }) => {
@@ -655,6 +759,7 @@ $('#cancel-button').addEventListener('click', () => leaveTimer());
 $('#share-button').addEventListener('click', openShare);
 $('#share-form').addEventListener('submit', showSharePreview);
 $('#copy-text-button').addEventListener('click', copyResultText);
+$('#share-image-button').addEventListener('click', shareImage);
 $('#share-text-button').addEventListener('click', shareResultText);
 $('#download-image-button').addEventListener('click', downloadImage);
 $$('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => button.closest('dialog').close()));
@@ -689,12 +794,15 @@ $('#mode-help-dialog').addEventListener('click', (event) => {
 });
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && !timerView.hidden) {
-    if (!wakeLock) await requestWakeLock();
+    if (!wakeLock) await checkDeviceWarnings();
     if (isRunning) worker.postMessage({ type: 'sync' });
+    if (wallClockActive && document.visibilityState === 'visible') tickWallClock();
   }
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') pauseForBackground();
+  if (document.visibilityState !== 'hidden') return;
+  pauseForBackground();
+  suspendWallClock();
 });
 
 window.addEventListener('beforeinstallprompt', (event) => {

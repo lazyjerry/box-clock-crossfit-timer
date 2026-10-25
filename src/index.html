@@ -10,6 +10,7 @@
   <title>BOX CLOCK｜CrossFit 間歇計時器</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -71,7 +72,7 @@
             </div>
 
             <div class="mode-settings" data-mode="fortime">
-              <div class="time-field"><label for="fortime-minutes">時間上限</label><div><input id="fortime-minutes" name="fortimeMinutes" type="number" min="1" max="99" value="20" inputmode="numeric" required><span>分</span><input id="fortime-seconds" name="fortimeSeconds" type="number" min="0" max="59" value="0" inputmode="numeric" aria-label="For Time 秒數" required><span>秒</span></div></div>
+              <div class="time-field"><label for="fortime-minutes">時間上限</label><div><input id="fortime-minutes" name="fortimeMinutes" type="number" min="0" max="99" value="20" inputmode="numeric" required><span>分</span><input id="fortime-seconds" name="fortimeSeconds" type="number" min="0" max="59" value="0" inputmode="numeric" aria-label="For Time 秒數" required><span>秒</span></div></div>
             </div>
 
             <div class="quick-presets" aria-label="快速套用">
@@ -90,7 +91,7 @@
               <option value="15">15 秒</option>
             </select>
             <div class="sound-settings">
-              <div class="sound-copy"><strong>聲音提示</strong><small>倒數、切換與完訓音效</small></div>
+              <div class="sound-copy"><strong>聲音提示</strong><small>拳擊鐘聲：倒數、開始、休息、剩 10 秒、完訓</small></div>
               <div class="sound-controls">
                 <label class="sound-switch" for="sound-enabled">
                   <input id="sound-enabled" type="checkbox" checked>
@@ -142,15 +143,18 @@
         <button id="cancel-button" class="control-button ghost" type="button">結束並返回</button>
       </div>
       <p id="timer-live" class="sr-only" aria-live="assertive"></p>
-      <dialog id="wake-dialog" class="help-dialog warning-dialog" aria-labelledby="wake-dialog-title">
+      <dialog id="warning-dialog" class="help-dialog warning-dialog" aria-labelledby="warning-dialog-title">
         <form method="dialog">
-          <div class="help-dialog-head"><h3 id="wake-dialog-title">螢幕可能會自動關閉</h3><button class="help-close" type="submit" aria-label="關閉">×</button></div>
-          <p>無法保持螢幕常亮，計時途中螢幕可能熄滅，也可能聽不到提示音。請試試：</p>
-          <ul>
-            <li>關閉省電模式（iPhone 的「低耗電模式」）</li>
-            <li>把「自動鎖定」或「螢幕逾時」調長</li>
-            <li>用最新版 Safari、Chrome 或 Edge，並以 HTTPS 開啟</li>
-          </ul>
+          <div class="help-dialog-head"><h3 id="warning-dialog-title">螢幕可能會自動關閉</h3><button class="help-close" type="submit" aria-label="關閉">×</button></div>
+          <div id="wake-warning-text">
+            <p>無法保持螢幕常亮，計時途中螢幕可能熄滅，也可能聽不到提示音。請試試：</p>
+            <ul>
+              <li>關閉省電模式（iPhone 的「低耗電模式」）</li>
+              <li>把「自動鎖定」或「螢幕逾時」調長</li>
+              <li>用最新版 Safari、Chrome 或 Edge，並以 HTTPS 開啟</li>
+            </ul>
+          </div>
+          <p id="battery-warning-text" hidden>電量只剩 <strong id="battery-level"></strong>，訓練途中可能沒電，建議先接上充電器。</p>
           <button class="dialog-button" type="submit">我知道了</button>
         </form>
       </dialog>
@@ -170,6 +174,7 @@
           <div class="share-actions">
             <button id="copy-text-button" class="dialog-button ghost" type="button">複製文字</button>
             <button id="download-image-button" class="dialog-button ghost" type="button">下載浮水印</button>
+            <button id="share-image-button" class="dialog-button wide" type="button">分享浮水印</button>
             <button id="share-text-button" class="dialog-button wide" type="button">分享</button>
           </div>
           <p id="share-status" class="share-status" aria-live="polite"></p>

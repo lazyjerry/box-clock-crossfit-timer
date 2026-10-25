@@ -27,7 +27,7 @@ export function normalizeConfig(raw = {}) {
     work: clampInteger(raw.work, 5, 15 * 60, MODE_DEFAULTS.tabata.work),
     rest: clampInteger(raw.rest, 0, 15 * 60, MODE_DEFAULTS.tabata.rest)
   };
-  return { mode, prep, cap: clampInteger(raw.cap, 60, 99 * 60 + 59, MODE_DEFAULTS.fortime.cap) };
+  return { mode, prep, cap: clampInteger(raw.cap, 30, 99 * 60 + 59, MODE_DEFAULTS.fortime.cap) };
 }
 
 export function createPlan(rawConfig) {
@@ -102,4 +102,24 @@ export function summarizeRun(plan, elapsedMs) {
 
 export function shareText(summary, exercise) {
   return `我剛做了『${exercise.trim()}』！\n${[summary.label, ...summary.lines].join(' · ')}`;
+}
+
+const WARNING_MS = 10000;
+const TICK_SECONDS = { prepare: 5, rest: 5, work: 3, countup: 3 };
+
+// True when the shown second has just dropped into the phase's final countdown (5…1 or 3…1).
+function countsDown(phase, remainingMs, previousMs) {
+  const shown = displaySeconds(remainingMs);
+  return shown >= 1 && shown <= TICK_SECONDS[phase.kind] && (previousMs === null || shown < displaySeconds(previousMs));
+}
+
+export function cueAt(phase, remainingMs, previous) {
+  if (!previous || previous.index !== phase.index) {
+    if (phase.kind === 'rest') return 'round-end';
+    if (phase.kind !== 'prepare') return 'round-start';
+    return countsDown(phase, remainingMs, null) ? 'tick' : null;
+  }
+  if (countsDown(phase, remainingMs, previous.remainingMs)) return 'tick';
+  const warns = (phase.kind === 'work' || phase.kind === 'countup') && phase.durationMs > WARNING_MS;
+  return warns && previous.remainingMs > WARNING_MS && remainingMs <= WARNING_MS ? 'warning' : null;
 }
