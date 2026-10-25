@@ -89,10 +89,20 @@
               <option value="10" selected>10 秒</option>
               <option value="15">15 秒</option>
             </select>
-            <label class="toggle-row">
-              <span><strong>聲音提示</strong><small>倒數、切換與完訓音效</small></span>
-              <input id="sound-enabled" type="checkbox" checked><i aria-hidden="true"></i>
-            </label>
+            <div class="sound-settings">
+              <label class="toggle-row" for="sound-enabled">
+                <span><strong>聲音提示</strong><small>倒數、切換與完訓音效</small></span>
+                <input id="sound-enabled" type="checkbox" checked><span class="toggle-switch" aria-hidden="true"><span></span></span>
+              </label>
+              <div class="volume-row">
+                <div class="volume-heading"><label for="sound-volume">提示音量</label><output id="sound-volume-value" for="sound-volume">70%</output></div>
+                <input id="sound-volume" type="range" min="20" max="100" step="5" value="70" aria-describedby="sound-test-status">
+              </div>
+              <div class="sound-test-row">
+                <button id="test-sound-button" class="test-sound-button" type="button">播放測試音</button>
+                <p id="sound-test-status" aria-live="polite">測試音不受開關影響</p>
+              </div>
+            </div>
             <output id="workout-summary" class="workout-summary" aria-live="polite"></output>
             <p id="form-error" class="form-error" role="alert"></p>
             <button class="primary-button" type="submit">開始訓練 <span>→</span></button>

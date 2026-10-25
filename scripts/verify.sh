@@ -22,5 +22,9 @@ grep -q "new Worker('./timer-worker.js'" dist/app.js
 grep -q "navigator.wakeLock.request('screen')" dist/app.js
 grep -q "navigator.serviceWorker.register('./sw.js')" dist/app.js
 grep -q "'./timer-worker.js'" dist/sw.js
+grep -q 'id="test-sound-button"' dist/index.html
+grep -q 'id="sound-volume"' dist/index.html
+grep -q 'function playSoundPreview' dist/app.js
+grep -q 'soundVolume' dist/app.js
 
-printf 'Verification passed: tests, PWA shell, worker, Wake Lock, locale, and artifact extensions.\n'
+printf 'Verification passed: tests, PWA shell, worker, Wake Lock, sound controls, locale, and artifact extensions.\n'

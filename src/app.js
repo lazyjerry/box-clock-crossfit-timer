@@ -46,6 +46,7 @@ let currentMode = 'amrap';
 let isPaused = false;
 let isRunning = false;
 let soundEnabled = true;
+let soundVolume = 0.7;
 let previousPhaseIndex = -1;
 let previousCueSecond = null;
 let installPrompt = null;
@@ -112,15 +113,15 @@ async function unlockAudio() {
   if (audioContext.state === 'suspended') await audioContext.resume();
 }
 
-function tone(frequency, duration = 0.12, delay = 0, gain = 0.18) {
-  if (!soundEnabled || !audioContext) return;
+function tone(frequency, duration = 0.12, delay = 0, gain = 0.18, force = false) {
+  if ((!soundEnabled && !force) || !audioContext) return;
   const start = audioContext.currentTime + delay;
   const oscillator = audioContext.createOscillator();
   const volume = audioContext.createGain();
   oscillator.type = 'square';
   oscillator.frequency.setValueAtTime(frequency, start);
   volume.gain.setValueAtTime(0.0001, start);
-  volume.gain.exponentialRampToValueAtTime(gain, start + 0.01);
+  volume.gain.exponentialRampToValueAtTime(Math.min(gain * soundVolume, 0.28), start + 0.01);
   volume.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   oscillator.connect(volume).connect(audioContext.destination);
   oscillator.start(start);
@@ -134,6 +135,18 @@ function playTransition(kind) {
 
 function playComplete() {
   tone(660, 0.16); tone(880, 0.16, 0.2); tone(1100, 0.34, 0.4);
+}
+
+function playSoundPreview() {
+  tone(523, 0.12, 0, 0.16, true);
+  tone(659, 0.12, 0.16, 0.16, true);
+  tone(784, 0.24, 0.32, 0.18, true);
+}
+
+function updateSoundVolume() {
+  soundVolume = Number($('#sound-volume').value) / 100;
+  $('#sound-volume-value').value = `${Math.round(soundVolume * 100)}%`;
+  $('#sound-volume-value').textContent = `${Math.round(soundVolume * 100)}%`;
 }
 
 async function requestWakeLock() {
@@ -206,6 +219,7 @@ async function startWorkout(event) {
     return;
   }
   soundEnabled = $('#sound-enabled').checked;
+  updateSoundVolume();
   if (soundEnabled) await unlockAudio();
   currentPlan = createPlan(config);
   currentMode = config.mode;
@@ -281,6 +295,17 @@ $('#sound-button').addEventListener('click', async () => {
   $('#sound-button').textContent = soundEnabled ? '聲音 ON' : '聲音 OFF';
   $('#sound-button').setAttribute('aria-pressed', String(!soundEnabled));
   $('#sound-button').setAttribute('aria-label', soundEnabled ? '關閉聲音' : '開啟聲音');
+});
+$('#sound-volume').addEventListener('input', updateSoundVolume);
+$('#test-sound-button').addEventListener('click', async () => {
+  try {
+    await unlockAudio();
+    updateSoundVolume();
+    playSoundPreview();
+    $('#sound-test-status').textContent = `已播放 ${Math.round(soundVolume * 100)}% 音量的測試音`;
+  } catch {
+    $('#sound-test-status').textContent = '此瀏覽器無法播放測試音';
+  }
 });
 $('#fullscreen-button').addEventListener('click', async () => {
   if (!document.fullscreenElement) await timerView.requestFullscreen?.();
