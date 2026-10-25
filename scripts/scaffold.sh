@@ -209,6 +209,13 @@ export async function resumeAudio(context) {
   return context.state === 'running';
 }
 
+// iOS PWA 從背景回來後，舊的 AudioContext 可能回報 running 卻不出聲；離開畫面就關掉，下次手勢重建。
+export function closeAudio(context) {
+  try {
+    context?.close().catch(() => {});
+  } catch {}
+}
+
 export function formatTimeOfDay(date) {
   return [date.getHours(), date.getMinutes(), date.getSeconds()].map((part) => String(part).padStart(2, '0')).join(':');
 }
@@ -712,7 +719,7 @@ EOF
 
 cat > "$project_dir/src/app.js" <<'EOF'
 import { createPlan, cueAt, displaySeconds, formatClock, shareText, snapshotAt, summarizeRun } from './timer-core.mjs';
-import { formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
+import { closeAudio, formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
 import { installButtonAction, installPlatform, isBatteryLow } from './device.mjs';
 
 const $ =(selector, root = document) => root.querySelector(selector);
@@ -955,6 +962,13 @@ async function unlockAudio() {
     applySoundVolume();
   }
   return resumeAudio(audioContext);
+}
+
+function releaseAudio() {
+  closeAudio(audioContext);
+  audioContext = null;
+  audioOutput = null;
+  noiseBuffer = null;
 }
 
 function soundOutputGain() {
@@ -1524,6 +1538,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'hidden') return;
   pauseForBackground();
   suspendWallClock();
+  releaseAudio();
 });
 
 function installAction() {
@@ -2074,7 +2089,7 @@ AAAAAElFTkSuQmCC
 EOF
 
 cat > "$project_dir/public/sw.js" <<'EOF'
-const CACHE_NAME = 'box-clock-v30';
+const CACHE_NAME = 'box-clock-v31';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './timer-core.mjs', './run-state.mjs', './device.mjs', './timer-worker.js', './manifest.webmanifest', './icon.svg', './icon-maskable.svg', './apple-touch-icon.png', './jerry.png'];
 
 self.addEventListener('install', (event) => {
@@ -2311,7 +2326,7 @@ EOF
 cat > "$project_dir/tests/run-state.test.mjs" <<'EOF'
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRunClock, formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from '../src/run-state.mjs';
+import { closeAudio, createRunClock, formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from '../src/run-state.mjs';
 
 function fakeNow(start = 1000) {
   let value = start;
@@ -2388,6 +2403,27 @@ test('audio interrupted while away is resumed', async () => {
 test('audio that cannot resume reports false instead of throwing', async () => {
   assert.equal(await resumeAudio(fakeAudioContext('suspended', { rejects: true })), false);
   assert.equal(await resumeAudio(null), false);
+});
+
+test('audio is closed when leaving the screen', async () => {
+  let closeCalls = 0;
+  const context = { state: 'running', async close() { closeCalls += 1; this.state = 'closed'; } };
+  closeAudio(context);
+  await Promise.resolve();
+  assert.equal(closeCalls, 1);
+  assert.equal(context.state, 'closed');
+});
+
+test('audio that cannot close does not throw', async () => {
+  const rejected = [];
+  const onRejection = (reason) => rejected.push(reason);
+  process.on('unhandledRejection', onRejection);
+  closeAudio({ async close() { throw new Error('closed already'); } });
+  closeAudio({ close() { throw new Error('closed already'); } });
+  closeAudio(null);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  process.off('unhandledRejection', onRejection);
+  assert.deepEqual(rejected, []);
 });
 
 test('time of day shows hours, minutes and seconds', () => {

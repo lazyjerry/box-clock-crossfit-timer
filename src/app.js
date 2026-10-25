@@ -1,5 +1,5 @@
 import { createPlan, cueAt, displaySeconds, formatClock, shareText, snapshotAt, summarizeRun } from './timer-core.mjs';
-import { formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
+import { closeAudio, formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
 import { installButtonAction, installPlatform, isBatteryLow } from './device.mjs';
 
 const $ =(selector, root = document) => root.querySelector(selector);
@@ -242,6 +242,13 @@ async function unlockAudio() {
     applySoundVolume();
   }
   return resumeAudio(audioContext);
+}
+
+function releaseAudio() {
+  closeAudio(audioContext);
+  audioContext = null;
+  audioOutput = null;
+  noiseBuffer = null;
 }
 
 function soundOutputGain() {
@@ -811,6 +818,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'hidden') return;
   pauseForBackground();
   suspendWallClock();
+  releaseAudio();
 });
 
 function installAction() {

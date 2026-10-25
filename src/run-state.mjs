@@ -59,6 +59,13 @@ export async function resumeAudio(context) {
   return context.state === 'running';
 }
 
+// iOS PWA 從背景回來後，舊的 AudioContext 可能回報 running 卻不出聲；離開畫面就關掉，下次手勢重建。
+export function closeAudio(context) {
+  try {
+    context?.close().catch(() => {});
+  } catch {}
+}
+
 export function formatTimeOfDay(date) {
   return [date.getHours(), date.getMinutes(), date.getSeconds()].map((part) => String(part).padStart(2, '0')).join(':');
 }

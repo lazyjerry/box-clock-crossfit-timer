@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRunClock, formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from '../src/run-state.mjs';
+import { closeAudio, createRunClock, formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from '../src/run-state.mjs';
 
 function fakeNow(start = 1000) {
   let value = start;
@@ -77,6 +77,27 @@ test('audio interrupted while away is resumed', async () => {
 test('audio that cannot resume reports false instead of throwing', async () => {
   assert.equal(await resumeAudio(fakeAudioContext('suspended', { rejects: true })), false);
   assert.equal(await resumeAudio(null), false);
+});
+
+test('audio is closed when leaving the screen', async () => {
+  let closeCalls = 0;
+  const context = { state: 'running', async close() { closeCalls += 1; this.state = 'closed'; } };
+  closeAudio(context);
+  await Promise.resolve();
+  assert.equal(closeCalls, 1);
+  assert.equal(context.state, 'closed');
+});
+
+test('audio that cannot close does not throw', async () => {
+  const rejected = [];
+  const onRejection = (reason) => rejected.push(reason);
+  process.on('unhandledRejection', onRejection);
+  closeAudio({ async close() { throw new Error('closed already'); } });
+  closeAudio({ close() { throw new Error('closed already'); } });
+  closeAudio(null);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  process.off('unhandledRejection', onRejection);
+  assert.deepEqual(rejected, []);
 });
 
 test('time of day shows hours, minutes and seconds', () => {
