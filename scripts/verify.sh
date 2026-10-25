@@ -33,7 +33,7 @@ grep -q 'function soundOutputGain' dist/app.js
 grep -q 'createDynamicsCompressor' dist/app.js
 grep -q 'function updateSoundToggleLabel' dist/app.js
 grep -q 'networkFirst' dist/sw.js
-grep -q "box-clock-v31" dist/sw.js
+grep -q "box-clock-v34" dist/sw.js
 ! grep -q 'id="sound-button"' dist/index.html
 ! grep -q 'id="fullscreen-button"' dist/index.html
 ! grep -q "#sound-button" dist/app.js

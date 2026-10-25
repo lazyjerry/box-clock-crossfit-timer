@@ -1033,25 +1033,30 @@ function playBell(times, { spacing = 0.3, strength = 1, sustain = 1, force = fal
   for (let hit = 0; hit < times; hit += 1) strikeBell(hit * spacing, strength, sustain);
 }
 
-function woodHit(start) {
-  knock(start, 0.5, 1600, 0.06);
-  ring(620, start, 0.1, 0.05, 'triangle');
+// Small high bell for warnings and ticks: an octave above the boxing bell, bright partials around 2-4 kHz
+// to cut through gym noise, no low hum, and a short ring so per-second ticks stay distinct.
+const DING_HZ = 1760;
+const DING_PARTIALS = [[1, 0.3, 0.45], [2.4, 0.12, 0.25], [4.5, 0.05, 0.12]];
+
+function ding(start) {
+  knock(start, 0.15, 5000, 0.02);
+  for (const [ratio, gain, decay] of DING_PARTIALS) ring(DING_HZ * ratio, start, gain, decay);
 }
 
-function playClapper() {
+function playWarning() {
   if (!canPlay(false)) return;
-  for (const delay of [0, 0.14, 0.28]) woodHit(audioContext.currentTime + delay);
+  for (const delay of [0, 0.18, 0.36]) ding(audioContext.currentTime + delay);
 }
 
 function playTick() {
   if (!canPlay(false)) return;
-  woodHit(audioContext.currentTime);
+  ding(audioContext.currentTime);
 }
 
 function playCue(cue) {
   if (cue === 'round-start') playBell(1);
   else if (cue === 'round-end') playBell(3);
-  else if (cue === 'warning') playClapper();
+  else if (cue === 'warning') playWarning();
   else if (cue === 'tick') playTick();
 }
 
@@ -1339,14 +1344,20 @@ async function renderShareImage(exercise) {
   const context = canvas.getContext('2d');
   const sans = 'system-ui,-apple-system,"PingFang TC","Noto Sans TC",sans-serif';
   const mono = 'ui-monospace,SFMono-Regular,Menlo,monospace';
-  const line = (text, y, fontSize, family, color = '#fff') => {
+  const line = (text, y, fontSize, family, color = '#fff', { stroke = 0.16, marker = false } = {}) => {
     let shown = fontSize;
     context.font = `900 ${shown}px ${family}`;
     while (context.measureText(text).width > size - 120 && shown > 20) {
       shown -= 2;
       context.font = `900 ${shown}px ${family}`;
     }
-    context.lineWidth = shown * 0.16;
+    if (marker) {
+      // Highlighter band behind the lower half of the glyphs, in the timer screen's rest purple
+      const width = context.measureText(text).width + shown * 0.5;
+      context.fillStyle = 'rgba(118,82,202,.88)';
+      context.fillRect((size - width) / 2, y - shown * 0.42, width, shown * 0.56);
+    }
+    context.lineWidth = shown * stroke;
     context.shadowColor = 'rgba(0,0,0,.45)';
     context.shadowBlur = shown * 0.3;
     context.strokeStyle = 'rgba(23,30,52,.92)';
@@ -1361,8 +1372,8 @@ async function renderShareImage(exercise) {
   context.lineJoin = 'round';
   line(`我剛做了『${exercise}』！`, 400, 76, sans);
   line(currentSummary.time, 640, 230, mono);
-  line(currentSummary.label, 740, 58, mono, '#ed735f');
-  currentSummary.lines.forEach((text, index) => line(text, 830 + index * 70, 44, sans));
+  line(currentSummary.label, 740, 58, mono, '#ed735f', { stroke: 0.3 });
+  currentSummary.lines.forEach((text, index) => line(text, 830 + index * 70, 44, sans, '#fff', { marker: true }));
   line('BOX CLOCK', 1020, 30, mono, '#e4e6ee');
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 }
@@ -2092,7 +2103,7 @@ AAAAAElFTkSuQmCC
 EOF
 
 cat > "$project_dir/public/sw.js" <<'EOF'
-const CACHE_NAME = 'box-clock-v32';
+const CACHE_NAME = 'box-clock-v34';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './timer-core.mjs', './run-state.mjs', './device.mjs', './timer-worker.js', './manifest.webmanifest', './icon.svg', './icon-maskable.svg', './apple-touch-icon.png', './jerry.png'];
 
 self.addEventListener('install', (event) => {
@@ -2502,7 +2513,7 @@ cat > "$project_dir/README.md" <<'EOF'
 
 - Web Worker 以單調時鐘校正經過時間，避免每秒遞減造成累積誤差。
 - AMRAP、EMOM、Tabata、For Time 四種原生流程。
-- 拳擊比賽鐘聲提示：動作開始敲一下、進入休息與完訓連敲三下、動作剩 10 秒敲木板，動作最後 3 秒與準備、休息的最後 5 秒每秒敲一聲，可調整音量並試聽。
+- 拳擊比賽鐘聲提示：動作開始敲一下、進入休息與完訓連敲三下、動作剩 10 秒連響三聲高音小鐘，動作最後 3 秒與準備、休息的最後 5 秒每秒響一聲小鐘，可調整音量並試聽。
 - Screen Wake Lock API 讓支援的瀏覽器在計時中保持螢幕常亮。
 - PWA 應用程式殼層離線快取，可安裝至主畫面。
 - 行動裝置、橫向顯示、鍵盤操作與螢幕閱讀器狀態提示。
