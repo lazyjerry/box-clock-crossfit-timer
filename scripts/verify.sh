@@ -24,7 +24,10 @@ grep -q "navigator.serviceWorker.register('./sw.js')" dist/app.js
 grep -q "'./timer-worker.js'" dist/sw.js
 grep -q 'id="test-sound-button"' dist/index.html
 grep -q 'id="sound-volume"' dist/index.html
+grep -q 'id="sound-enabled-label"' dist/index.html
 grep -q 'function playSoundPreview' dist/app.js
 grep -q 'soundVolume' dist/app.js
+grep -q 'function updateSoundToggleLabel' dist/app.js
+grep -q 'networkFirst' dist/sw.js
 
 printf 'Verification passed: tests, PWA shell, worker, Wake Lock, sound controls, locale, and artifact extensions.\n'

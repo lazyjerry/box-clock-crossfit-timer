@@ -272,10 +272,14 @@ cat > "$project_dir/src/index.html" <<'EOF'
               <option value="15">15 秒</option>
             </select>
             <div class="sound-settings">
-              <label class="toggle-row" for="sound-enabled">
-                <span><strong>聲音提示</strong><small>倒數、切換與完訓音效</small></span>
-                <input id="sound-enabled" type="checkbox" checked><span class="toggle-switch" aria-hidden="true"><span></span></span>
-              </label>
+              <div class="sound-toggle">
+                <div class="sound-copy"><strong>聲音提示</strong><small>倒數、切換與完訓音效</small></div>
+                <label class="sound-switch" for="sound-enabled">
+                  <input id="sound-enabled" type="checkbox" checked>
+                  <span class="sound-switch-track" aria-hidden="true"><span></span></span>
+                  <span id="sound-enabled-label" class="sound-switch-label">開啟</span>
+                </label>
+              </div>
               <div class="volume-row">
                 <div class="volume-heading"><label for="sound-volume">提示音量</label><output id="sound-volume-value" for="sound-volume">70%</output></div>
                 <input id="sound-volume" type="range" min="20" max="100" step="5" value="70" aria-describedby="sound-test-status">
@@ -327,7 +331,7 @@ EOF
 
 cat > "$project_dir/src/styles.css" <<'EOF'
 [hidden]{display:none!important}
-.sound-settings{margin-bottom:22px}.toggle-row .toggle-switch{width:44px;height:24px;display:block;position:relative;background:#c9c7c1;border:1px solid #b6b4ae;transition:.15s}.toggle-row .toggle-switch>span{width:17px;height:17px;position:absolute;top:2px;left:2px;background:#fff;border:1px solid #aaa8a1;transition:.15s}.toggle-row input:checked+.toggle-switch{background:var(--purple);border-color:var(--purple)}.toggle-row input:checked+.toggle-switch>span{transform:translateX(20px);border-color:#fff}.toggle-row input:focus-visible+.toggle-switch{outline:3px solid rgba(118,82,202,.22);outline-offset:2px}.volume-row{padding:16px 0;border-top:1px solid var(--line)}.volume-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}.volume-heading label{color:var(--ink)}.volume-heading output{min-width:42px;padding:4px 6px;color:#fff;background:var(--purple);font:800 11px/1 ui-monospace,monospace;text-align:center}.volume-row input[type=range]{width:100%;height:8px;margin:0;accent-color:var(--purple);cursor:pointer}.sound-test-row{display:flex;align-items:center;gap:12px}.test-sound-button{min-height:40px;padding:0 14px;color:var(--purple);background:#fff;border:1px solid color-mix(in srgb,var(--purple) 48%,var(--line));font-size:12px;font-weight:850}.test-sound-button:hover{color:#fff;background:var(--purple)}.sound-test-row p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}
+.sound-settings{margin-bottom:22px}.sound-toggle{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;padding-bottom:16px;border-bottom:1px solid var(--line)}.sound-copy strong,.sound-copy small{display:block}.sound-copy strong{color:var(--ink);font-size:13px}.sound-copy small{margin-top:4px;color:var(--muted);font-size:11px}.sound-switch{display:flex;align-items:center;gap:9px;min-height:32px;color:var(--ink);font-size:12px;font-weight:850;cursor:pointer}.sound-switch input{position:absolute;opacity:0;pointer-events:none}.sound-switch-track{width:46px;height:26px;display:block;position:relative;flex:0 0 auto;background:#d4d2cc;border:1px solid #aaa8a1;border-radius:13px;transition:.15s}.sound-switch-track>span{width:20px;height:20px;position:absolute;top:2px;left:2px;background:#fff;border:1px solid #aaa8a1;border-radius:50%;box-shadow:1px 1px 0 rgba(23,30,52,.12);transition:.15s}.sound-switch input:checked+.sound-switch-track{background:var(--purple);border-color:var(--purple)}.sound-switch input:checked+.sound-switch-track>span{transform:translateX(20px);border-color:#fff}.sound-switch input:focus-visible+.sound-switch-track{outline:3px solid rgba(118,82,202,.25);outline-offset:3px}.sound-switch-label{min-width:25px}.volume-row{padding:16px 0;border-bottom:1px solid var(--line)}.volume-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}.volume-heading label{color:var(--ink)}.volume-heading output{min-width:42px;padding:4px 6px;color:#fff;background:var(--purple);font:800 11px/1 ui-monospace,monospace;text-align:center}.volume-row input[type=range]{width:100%;height:8px;margin:0;accent-color:var(--purple);cursor:pointer}.sound-test-row{display:flex;align-items:center;gap:12px;padding-top:16px}.test-sound-button{min-height:40px;padding:0 14px;color:var(--purple);background:#fff;border:1px solid color-mix(in srgb,var(--purple) 48%,var(--line));font-size:12px;font-weight:850}.test-sound-button:hover{color:#fff;background:var(--purple)}.sound-test-row p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}
 :root{color-scheme:light;--paper:#f5f3ed;--card:#fffef9;--ink:#171e34;--muted:#707486;--line:#d4d2cc;--coral:#ed735f;--purple:#7652ca;--green:#398a70;--yellow:#e2a62d;--danger:#c6473a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:linear-gradient(rgba(23,30,52,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(23,30,52,.05) 1px,transparent 1px),var(--paper);background-size:24px 24px}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid color-mix(in srgb,var(--coral) 35%,transparent);outline-offset:2px}main{min-height:100vh;padding-bottom:34px}.site-header,.hero,.tool-card,.feature-strip,footer{width:min(1180px,calc(100% - 48px));margin-inline:auto}.site-header{padding:28px 0 8px;display:flex;justify-content:space-between;align-items:center;gap:16px}.brand{display:flex;align-items:center;gap:11px;color:var(--ink);text-decoration:none;font:800 11px/1 ui-monospace,monospace;letter-spacing:.18em}.brand-mark{width:34px;height:34px;display:grid;place-items:center;color:#fff;background:var(--coral);border-radius:50%;font-size:9px;letter-spacing:0}.status-pills{display:flex;align-items:center;gap:10px}.status-pill{display:flex;align-items:center;gap:8px;color:var(--muted);font:800 10px/1 ui-monospace,monospace;letter-spacing:.12em}.status-pill i{width:8px;height:8px;background:var(--green);border-radius:50%}.install-button{padding:8px 10px;color:var(--ink);background:transparent;border:1px solid var(--ink);font:800 10px/1 ui-monospace,monospace;letter-spacing:.08em}.hero{padding:58px 0 44px;border-bottom:3px solid var(--ink)}.eyebrow{margin:0 0 18px;color:var(--coral);font:800 12px/1 ui-monospace,monospace;letter-spacing:.22em}.hero-grid{display:grid;grid-template-columns:1.2fr .8fr;align-items:end;gap:56px}h1{margin:0;font-size:clamp(54px,8vw,102px);line-height:.82;letter-spacing:-.065em;font-weight:950}h1 span,h1 em{display:block;font-style:normal}h1 em{color:transparent;-webkit-text-stroke:2px var(--ink);text-shadow:4px 4px 0 rgba(23,30,52,.1)}.lede{margin:0 0 7px;padding:6px 0 6px 22px;border-left:5px solid var(--coral);font-size:16px;font-weight:650;line-height:1.8}.tool-card{margin-top:38px;background:var(--card);border:1px solid var(--line);border-top:7px solid var(--coral);box-shadow:7px 7px 0 rgba(23,30,52,.11)}.section-heading{display:flex;align-items:center;gap:18px;padding:32px}.section-number{width:56px;height:56px;display:grid;place-items:center;flex:0 0 auto;color:#fff;background:var(--coral);border-radius:50%;font:800 14px/1 ui-monospace,monospace}.section-heading h2{margin:0;font-size:clamp(26px,4vw,34px);letter-spacing:-.035em}.section-heading p{margin:6px 0 0;color:var(--muted);font-size:14px}.mode-picker{margin:0;padding:0 32px 32px;border:0}.mode-picker legend{margin-bottom:12px;color:#555a6d;font-size:12px;font-weight:850;letter-spacing:.04em}.mode-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.mode-option{position:relative;min-width:0}.mode-option input{position:absolute;opacity:0}.mode-option span{height:100%;display:block;padding:18px 16px;background:#f8f7f2;border:1px solid var(--line);transition:.15s}.mode-option strong,.mode-option small{display:block}.mode-option strong{font:900 16px/1 ui-monospace,monospace;letter-spacing:.03em}.mode-option small{margin-top:8px;color:var(--muted);font-size:11px;line-height:1.45}.mode-option input:checked+span{color:#fff;background:var(--ink);border-color:var(--ink);box-shadow:4px 4px 0 var(--coral)}.mode-option input:checked+span small{color:#e4e6ee}.mode-option input:focus-visible+span{outline:3px solid rgba(237,115,95,.3);outline-offset:2px}.settings-layout{display:grid;grid-template-columns:1.15fr .85fr;border-top:1px solid var(--line)}.settings-panel,.start-panel{padding:32px}.settings-panel{background:#faf9f5;border-right:1px solid var(--line)}.start-panel{background:#f1efe8}.panel-title{margin-bottom:26px}.panel-title span,.panel-title small{display:block}.panel-title span{font-size:18px;font-weight:900}.panel-title small{margin-top:6px;color:var(--muted);font-size:12px;line-height:1.5}label{color:#555a6d;font-size:12px;font-weight:800}.time-field>label,.field-pair label,.field-trio label,.start-panel>label{display:block;margin-bottom:9px}.time-field>div{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;align-items:center;gap:10px}.time-field span,.unit-input span{color:var(--muted);font-size:12px;font-weight:800}input[type=number],select{width:100%;height:52px;padding:0 13px;color:var(--ink);background:#fff;border:1px solid #bfc0c4;border-radius:0;font-weight:850;font-variant-numeric:tabular-nums}.field-pair,.field-trio{display:grid;gap:15px}.field-pair{grid-template-columns:1fr 1fr}.field-trio{grid-template-columns:repeat(3,1fr)}.unit-input{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}.quick-presets{margin-top:25px;padding-top:22px;border-top:1px solid var(--line)}.quick-presets>span{display:block;margin-bottom:10px;color:#555a6d;font-size:11px;font-weight:850}.quick-presets>div{display:flex;flex-wrap:wrap;gap:8px}.preset-button{width:auto;min-height:36px;padding:0 13px;color:var(--purple);background:#fff;border:1px solid color-mix(in srgb,var(--purple) 45%,var(--line));font-size:11px;font-weight:850}.preset-button:hover{color:#fff;background:var(--purple)}select{margin-bottom:24px}.toggle-row{display:grid;grid-template-columns:1fr auto;align-items:center;position:relative;margin:0 0 22px;cursor:pointer}.toggle-row strong,.toggle-row small{display:block}.toggle-row strong{color:var(--ink);font-size:13px}.toggle-row small{margin-top:4px;color:var(--muted);font-size:11px}.toggle-row input{position:absolute;opacity:0}.toggle-row i{width:44px;height:24px;position:relative;background:#c9c7c1;border:1px solid #b6b4ae;transition:.15s}.toggle-row i::after{content:"";width:17px;height:17px;position:absolute;top:2px;left:2px;background:#fff;border:1px solid #aaa8a1;transition:.15s}.toggle-row input:checked+i{background:var(--purple);border-color:var(--purple)}.toggle-row input:checked+i::after{transform:translateX(20px);border-color:#fff}.toggle-row input:focus-visible+i{outline:3px solid rgba(118,82,202,.22);outline-offset:2px}.workout-summary{display:block;min-height:72px;margin-bottom:12px;padding:13px 14px;background:#fff;border-left:5px solid var(--purple);font-size:13px;font-weight:750;line-height:1.6}.workout-summary strong{display:block;font-size:17px}.form-error{min-height:19px;margin:0 0 8px;color:var(--danger);font-size:12px;font-weight:750}.primary-button{width:100%;min-height:54px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;color:#fff;background:var(--ink);border:1px solid var(--ink);font-weight:900}.primary-button:hover{background:var(--coral);border-color:var(--coral)}.primary-button span{font-size:20px}.timer-view{min-height:calc(100vh - 32px);margin:16px;background:var(--ink);color:#fff;border:1px solid #3b435b;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden}.timer-view[hidden]{display:none}.timer-topline{display:flex;justify-content:space-between;gap:16px;padding:19px 24px;border-bottom:1px solid #3a4258;color:#bbc1d1;font:800 11px/1 ui-monospace,monospace;letter-spacing:.12em}.timer-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;padding:24px;text-align:center}.timer-phase{margin:0 0 4px;color:var(--coral);font:900 clamp(24px,4vw,48px)/1 ui-monospace,monospace;letter-spacing:.1em}.timer-stage[data-phase=rest] .timer-phase{color:#8b70df}.timer-stage[data-phase=work] .timer-phase,.timer-stage[data-phase=countup] .timer-phase{color:#56b99a}.timer-clock{font:950 clamp(92px,25vw,300px)/.9 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.1em;font-variant-numeric:tabular-nums}.progress-track{width:min(680px,86vw);height:9px;margin:34px 0 24px;background:#353e54}.progress-track span{display:block;width:100%;height:100%;background:var(--coral);transform-origin:left center}.timer-stage[data-phase=rest] .progress-track span{background:#8b70df}.timer-stage[data-phase=work] .progress-track span,.timer-stage[data-phase=countup] .progress-track span{background:#56b99a}.round-display{margin:0;font-size:clamp(20px,3vw,36px);font-weight:900}.next-display{margin:9px 0 0;color:#9fa7ba;font-size:13px}.timer-controls{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;padding:19px 20px calc(19px + env(safe-area-inset-bottom));border-top:1px solid #3a4258}.control-button{min-height:48px;padding:0 20px;color:#fff;background:#2b344a;border:1px solid #4a5368;font-weight:850}.control-button.primary{min-width:150px;color:var(--ink);background:#fff;border-color:#fff}.control-button.finish{color:#fff;background:var(--green);border-color:var(--green)}.control-button.ghost{color:#bbc1d1;background:transparent}.control-button:hover{border-color:var(--coral)}.feature-strip{display:grid;grid-template-columns:repeat(3,1fr);margin-top:34px;background:rgba(255,254,249,.86);border:1px solid var(--line)}.feature-strip article{display:flex;gap:14px;padding:22px}.feature-strip article+article{border-left:1px solid var(--line)}.feature-strip article>span{color:var(--coral);font:900 11px/1 ui-monospace,monospace}.feature-strip strong{font-size:13px}.feature-strip p{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.55}footer{margin-top:28px;padding:22px 0 0;color:var(--muted);border-top:2px solid var(--ink);font:10px/1.5 ui-monospace,monospace;letter-spacing:.08em;text-align:center}footer span{padding:0 8px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}body.timer-running{overflow:hidden}
 @media(max-width:800px){.site-header,.hero,.tool-card,.feature-strip,footer{width:calc(100% - 32px)}.hero{padding:42px 0 32px}.hero-grid{grid-template-columns:1fr;gap:30px}.lede{font-size:14px}.section-heading{padding:25px 20px}.mode-picker{padding:0 20px 24px}.mode-grid{grid-template-columns:1fr 1fr}.settings-layout{grid-template-columns:1fr}.settings-panel{border-right:0;border-bottom:1px solid var(--line)}.settings-panel,.start-panel{padding:24px 20px}.feature-strip{grid-template-columns:1fr}.feature-strip article+article{border-left:0;border-top:1px solid var(--line)}.timer-clock{font-size:clamp(80px,25vw,170px)}}
@@ -488,6 +492,11 @@ function updateSoundVolume() {
   $('#sound-volume-value').textContent = `${Math.round(soundVolume * 100)}%`;
 }
 
+function updateSoundToggleLabel() {
+  const enabled = $('#sound-enabled').checked;
+  $('#sound-enabled-label').textContent = enabled ? '開啟' : '關閉';
+}
+
 async function requestWakeLock() {
   const status = $('#wake-status');
   if (!('wakeLock' in navigator)) {
@@ -558,6 +567,7 @@ async function startWorkout(event) {
     return;
   }
   soundEnabled = $('#sound-enabled').checked;
+  updateSoundToggleLabel();
   updateSoundVolume();
   if (soundEnabled) await unlockAudio();
   currentPlan = createPlan(config);
@@ -636,6 +646,7 @@ $('#sound-button').addEventListener('click', async () => {
   $('#sound-button').setAttribute('aria-label', soundEnabled ? '關閉聲音' : '開啟聲音');
 });
 $('#sound-volume').addEventListener('input', updateSoundVolume);
+$('#sound-enabled').addEventListener('change', updateSoundToggleLabel);
 $('#test-sound-button').addEventListener('click', async () => {
   try {
     await unlockAudio();
@@ -670,7 +681,17 @@ $('#install-button').addEventListener('click', async () => {
   $('#install-button').hidden = true;
 });
 
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+if ('serviceWorker' in navigator) {
+  let serviceWorkerRefreshPending = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!serviceWorkerRefreshPending) {
+      serviceWorkerRefreshPending = true;
+      window.location.reload();
+    }
+  });
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').then((registration) => registration.update()));
+}
+updateSoundToggleLabel();
 updateSetup();
 EOF
 
@@ -703,7 +724,7 @@ cat > "$project_dir/public/icon.svg" <<'EOF'
 EOF
 
 cat > "$project_dir/public/sw.js" <<'EOF'
-const CACHE_NAME = 'box-clock-v3';
+const CACHE_NAME = 'box-clock-v4';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './timer-core.mjs', './timer-worker.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -716,10 +737,16 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
-  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
+  const networkFirst = event.request.mode === 'navigate' || ['script', 'style', 'worker', 'manifest'].includes(event.request.destination);
+  const updateCache = (response) => {
     if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
     return response;
-  }).catch(() => caches.match('./index.html'))));
+  };
+  if (networkFirst) {
+    event.respondWith(fetch(event.request).then(updateCache).catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html'))));
+    return;
+  }
+  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then(updateCache).catch(() => caches.match('./index.html'))));
 });
 EOF
 

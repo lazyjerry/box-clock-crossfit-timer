@@ -149,6 +149,11 @@ function updateSoundVolume() {
   $('#sound-volume-value').textContent = `${Math.round(soundVolume * 100)}%`;
 }
 
+function updateSoundToggleLabel() {
+  const enabled = $('#sound-enabled').checked;
+  $('#sound-enabled-label').textContent = enabled ? '開啟' : '關閉';
+}
+
 async function requestWakeLock() {
   const status = $('#wake-status');
   if (!('wakeLock' in navigator)) {
@@ -219,6 +224,7 @@ async function startWorkout(event) {
     return;
   }
   soundEnabled = $('#sound-enabled').checked;
+  updateSoundToggleLabel();
   updateSoundVolume();
   if (soundEnabled) await unlockAudio();
   currentPlan = createPlan(config);
@@ -297,6 +303,7 @@ $('#sound-button').addEventListener('click', async () => {
   $('#sound-button').setAttribute('aria-label', soundEnabled ? '關閉聲音' : '開啟聲音');
 });
 $('#sound-volume').addEventListener('input', updateSoundVolume);
+$('#sound-enabled').addEventListener('change', updateSoundToggleLabel);
 $('#test-sound-button').addEventListener('click', async () => {
   try {
     await unlockAudio();
@@ -331,5 +338,15 @@ $('#install-button').addEventListener('click', async () => {
   $('#install-button').hidden = true;
 });
 
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+if ('serviceWorker' in navigator) {
+  let serviceWorkerRefreshPending = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!serviceWorkerRefreshPending) {
+      serviceWorkerRefreshPending = true;
+      window.location.reload();
+    }
+  });
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').then((registration) => registration.update()));
+}
+updateSoundToggleLabel();
 updateSetup();

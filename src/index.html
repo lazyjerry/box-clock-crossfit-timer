@@ -90,10 +90,14 @@
               <option value="15">15 秒</option>
             </select>
             <div class="sound-settings">
-              <label class="toggle-row" for="sound-enabled">
-                <span><strong>聲音提示</strong><small>倒數、切換與完訓音效</small></span>
-                <input id="sound-enabled" type="checkbox" checked><span class="toggle-switch" aria-hidden="true"><span></span></span>
-              </label>
+              <div class="sound-toggle">
+                <div class="sound-copy"><strong>聲音提示</strong><small>倒數、切換與完訓音效</small></div>
+                <label class="sound-switch" for="sound-enabled">
+                  <input id="sound-enabled" type="checkbox" checked>
+                  <span class="sound-switch-track" aria-hidden="true"><span></span></span>
+                  <span id="sound-enabled-label" class="sound-switch-label">開啟</span>
+                </label>
+              </div>
               <div class="volume-row">
                 <div class="volume-heading"><label for="sound-volume">提示音量</label><output id="sound-volume-value" for="sound-volume">70%</output></div>
                 <input id="sound-volume" type="range" min="20" max="100" step="5" value="70" aria-describedby="sound-test-status">
