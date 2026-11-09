@@ -89,8 +89,7 @@ const SCENES = [
       await page.selectOption('#prep-time', '5');
     },
     async play(page) {
-      await tap(page, '.primary-button[type="submit"]', 1000);
-      await tap(page, '#start-button', 6500);
+      await tap(page, '.primary-button[type="submit"]', 7500);
       await tap(page, '#start-button', 1500);
       await tap(page, '#start-button', 1800);
       await tap(page, '#reset-button', 1200);
@@ -103,8 +102,7 @@ const SCENES = [
       await page.selectOption('#prep-time', '0');
     },
     async play(page) {
-      await tap(page, '.primary-button[type="submit"]', 1000);
-      await tap(page, '#start-button', 3200);
+      await tap(page, '.primary-button[type="submit"]', 4200);
       await tap(page, '#finish-button', 1600);
       await tap(page, '#share-button', 700);
       await typeInto(page, '#share-exercise', '波比跳');
@@ -131,8 +129,7 @@ const DEMO_SCENE = {
     await tap(page, 'label.mode-option:has(input[value="tabata"])', 1000);
     await reveal(page, '#workout-summary');
     await wait(page, 1500);
-    await tap(page, '.primary-button[type="submit"]', 1000);
-    await tap(page, '#start-button', 0);
+    await tap(page, '.primary-button[type="submit"]', 0);
     await page.locator('#share-button').waitFor({ state: 'visible', timeout: 120000 });
     await wait(page, 1800);
     await tap(page, '#share-button', 700);

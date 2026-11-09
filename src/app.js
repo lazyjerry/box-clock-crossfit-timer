@@ -510,6 +510,7 @@ async function startWorkout(event) {
   currentMode = config.mode;
   showTimerView();
   resetTimer();
+  toggleTimer();
   wakeWarned = false;
   await checkDeviceWarnings({ battery: true });
 }

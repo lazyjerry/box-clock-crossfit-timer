@@ -1231,6 +1231,7 @@ async function startWorkout(event) {
   currentMode = config.mode;
   showTimerView();
   resetTimer();
+  toggleTimer();
   wakeWarned = false;
   await checkDeviceWarnings({ battery: true });
 }
@@ -2109,7 +2110,7 @@ AAAAAElFTkSuQmCC
 EOF
 
 cat > "$project_dir/public/sw.js" <<'EOF'
-const CACHE_NAME = 'box-clock-v35';
+const CACHE_NAME = 'box-clock-v36';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './timer-core.mjs', './run-state.mjs', './device.mjs', './timer-worker.js', './manifest.webmanifest', './icon.svg', './icon-maskable.svg', './apple-touch-icon.png', './jerry.png'];
 
 self.addEventListener('install', (event) => {
