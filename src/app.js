@@ -1,6 +1,6 @@
 import { createPlan, cueAt, displaySeconds, formatClock, shareText, snapshotAt, summarizeRun } from './timer-core.mjs';
 import { closeAudio, formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
-import { installButtonAction, installPlatform, isBatteryLow } from './device.mjs';
+import { appPromoVisible, installButtonAction, installPlatform, isBatteryLow, localDateKey } from './device.mjs';
 
 const $ =(selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -882,6 +882,27 @@ $('#install-dialog').addEventListener('click', (event) => {
 });
 updateInstallButton();
 
+const APP_PROMO_STORAGE_KEY = 'box-clock-app-promo-dismissed';
+// 每次開頁（含重新整理）提醒下載原生 App；還原到計時畫面時不打斷訓練。
+function showAppPromo() {
+  let dismissedOn = null;
+  try {
+    dismissedOn = localStorage.getItem(APP_PROMO_STORAGE_KEY);
+  } catch {}
+  if (!timerView.hidden || !appPromoVisible({ dismissedOn, now: new Date() })) return;
+  $('#app-promo-dialog').showModal();
+}
+$('#app-promo-snooze').addEventListener('click', () => {
+  try {
+    localStorage.setItem(APP_PROMO_STORAGE_KEY, localDateKey(new Date()));
+  } catch {}
+  $('#app-promo-dialog').close();
+});
+$('#app-promo-link').addEventListener('click', () => $('#app-promo-dialog').close());
+$('#app-promo-dialog').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
+});
+
 if ('serviceWorker' in navigator) {
   let serviceWorkerRefreshPending = false;
   const hadServiceWorkerController = Boolean(navigator.serviceWorker.controller);
@@ -898,3 +919,4 @@ updateSoundToggleLabel();
 updateSoundVolume();
 updateSetup();
 restoreSavedRun();
+showAppPromo();

@@ -15,3 +15,4 @@ body.timer-running{background:var(--ink)}body.timer-running main{min-height:0;pa
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 html{touch-action:pan-x pan-y}
 .help-dialog[open]{display:flex;flex-direction:column;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:hidden}.help-dialog form{min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.app-link{display:inline-block;text-decoration:none}.app-promo-link{display:flex;align-items:center;justify-content:center;text-decoration:none}.app-promo-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.app-promo-actions .dialog-button{margin-top:12px}

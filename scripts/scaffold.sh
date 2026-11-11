@@ -241,6 +241,16 @@ export function installPlatform({ userAgent = '', maxTouchPoints = 0 }) {
   if (/Android/.test(userAgent)) return 'android';
   return 'desktop';
 }
+
+export function localDateKey(date) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// 「今日不再提醒我」只擋到本機日期換日為止。
+export function appPromoVisible({ dismissedOn, now }) {
+  return dismissedOn !== localDateKey(now);
+}
 EOF
 
 cat > "$project_dir/src/timer-worker.js" <<'EOF'
@@ -332,6 +342,7 @@ cat > "$project_dir/src/index.html" <<'EOF'
       <div class="status-pills" aria-label="應用程式狀態">
         <span class="status-pill"><i></i>OFFLINE READY</span>
         <button id="install-button" class="install-button" type="button" hidden>安裝 APP</button>
+        <a class="install-button app-link" href="https://boxclock-app.jlab-app.cloud/" target="_blank" rel="noopener">下載 APP</a>
       </div>
     </header>
 
@@ -692,6 +703,17 @@ cat > "$project_dir/src/index.html" <<'EOF'
         </ul>
       </form>
     </dialog>
+    <dialog id="app-promo-dialog" class="help-dialog app-promo-dialog" aria-labelledby="app-promo-title">
+      <form method="dialog">
+        <div class="help-dialog-head"><h3 id="app-promo-title">BOX CLOCK 有 APP 了</h3><button class="help-close" type="submit" aria-label="關閉">×</button></div>
+        <p>iPhone 與 Android 都能下載 BOX CLOCK 原生 App，到 App Store 或 Google Play 安裝。</p>
+        <a id="app-promo-link" class="dialog-button app-promo-link" href="https://boxclock-app.jlab-app.cloud/" target="_blank" rel="noopener">前往下載 APP</a>
+        <div class="app-promo-actions">
+          <button id="app-promo-snooze" class="dialog-button ghost" type="button">今日不再提醒我</button>
+          <button class="dialog-button ghost" type="submit">關閉</button>
+        </div>
+      </form>
+    </dialog>
   </main>
   <script type="module" src="./app.js"></script>
 </body>
@@ -716,12 +738,13 @@ body.timer-running{background:var(--ink)}body.timer-running main{min-height:0;pa
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 html{touch-action:pan-x pan-y}
 .help-dialog[open]{display:flex;flex-direction:column;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:hidden}.help-dialog form{min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.app-link{display:inline-block;text-decoration:none}.app-promo-link{display:flex;align-items:center;justify-content:center;text-decoration:none}.app-promo-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.app-promo-actions .dialog-button{margin-top:12px}
 EOF
 
 cat > "$project_dir/src/app.js" <<'EOF'
 import { createPlan, cueAt, displaySeconds, formatClock, shareText, snapshotAt, summarizeRun } from './timer-core.mjs';
 import { closeAudio, formatTimeOfDay, msUntilNextSecond, restoreRun, resumeAudio, serializeRun } from './run-state.mjs';
-import { installButtonAction, installPlatform, isBatteryLow } from './device.mjs';
+import { appPromoVisible, installButtonAction, installPlatform, isBatteryLow, localDateKey } from './device.mjs';
 
 const $ =(selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1603,6 +1626,27 @@ $('#install-dialog').addEventListener('click', (event) => {
 });
 updateInstallButton();
 
+const APP_PROMO_STORAGE_KEY = 'box-clock-app-promo-dismissed';
+// 每次開頁（含重新整理）提醒下載原生 App；還原到計時畫面時不打斷訓練。
+function showAppPromo() {
+  let dismissedOn = null;
+  try {
+    dismissedOn = localStorage.getItem(APP_PROMO_STORAGE_KEY);
+  } catch {}
+  if (!timerView.hidden || !appPromoVisible({ dismissedOn, now: new Date() })) return;
+  $('#app-promo-dialog').showModal();
+}
+$('#app-promo-snooze').addEventListener('click', () => {
+  try {
+    localStorage.setItem(APP_PROMO_STORAGE_KEY, localDateKey(new Date()));
+  } catch {}
+  $('#app-promo-dialog').close();
+});
+$('#app-promo-link').addEventListener('click', () => $('#app-promo-dialog').close());
+$('#app-promo-dialog').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
+});
+
 if ('serviceWorker' in navigator) {
   let serviceWorkerRefreshPending = false;
   const hadServiceWorkerController = Boolean(navigator.serviceWorker.controller);
@@ -1619,6 +1663,7 @@ updateSoundToggleLabel();
 updateSoundVolume();
 updateSetup();
 restoreSavedRun();
+showAppPromo();
 EOF
 
 cat > "$project_dir/public/manifest.webmanifest" <<'EOF'
@@ -2110,7 +2155,7 @@ AAAAAElFTkSuQmCC
 EOF
 
 cat > "$project_dir/public/sw.js" <<'EOF'
-const CACHE_NAME = 'box-clock-v36';
+const CACHE_NAME = 'box-clock-v37';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './timer-core.mjs', './run-state.mjs', './device.mjs', './timer-worker.js', './manifest.webmanifest', './icon.svg', './icon-maskable.svg', './apple-touch-icon.png', './jerry.png'];
 
 self.addEventListener('install', (event) => {
@@ -2462,7 +2507,7 @@ EOF
 cat > "$project_dir/tests/device.test.mjs" <<'EOF'
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installButtonAction, installPlatform, isBatteryLow } from '../src/device.mjs';
+import { appPromoVisible, installButtonAction, installPlatform, isBatteryLow, localDateKey } from '../src/device.mjs';
 
 test('battery below 30 percent and not charging is low', () => {
   assert.equal(isBatteryLow({ level: 0.29, charging: false }), true);
@@ -2505,6 +2550,25 @@ test('desktop user agents use the desktop install guide', () => {
   assert.equal(installPlatform({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15', maxTouchPoints: 0 }), 'desktop');
   assert.equal(installPlatform({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', maxTouchPoints: 0 }), 'desktop');
 });
+
+test('local date key is the zero-padded local calendar date', () => {
+  assert.equal(localDateKey(new Date(2026, 10, 11, 23, 59)), '2026-11-11');
+  assert.equal(localDateKey(new Date(2026, 0, 5, 0, 0)), '2026-01-05');
+});
+
+test('app promo shows when it was never dismissed', () => {
+  assert.equal(appPromoVisible({ dismissedOn: null, now: new Date(2026, 10, 11, 9, 0) }), true);
+});
+
+test('app promo stays hidden for the rest of the day it was dismissed', () => {
+  assert.equal(appPromoVisible({ dismissedOn: '2026-11-11', now: new Date(2026, 10, 11, 0, 0) }), false);
+  assert.equal(appPromoVisible({ dismissedOn: '2026-11-11', now: new Date(2026, 10, 11, 23, 59) }), false);
+});
+
+test('app promo shows again from the next local day', () => {
+  assert.equal(appPromoVisible({ dismissedOn: '2026-11-11', now: new Date(2026, 10, 12, 0, 0) }), true);
+  assert.equal(appPromoVisible({ dismissedOn: '2026-10-30', now: new Date(2026, 10, 11, 9, 0) }), true);
+});
 EOF
 
 cat > "$project_dir/README.md" <<'EOF'
@@ -2530,7 +2594,7 @@ cat > "$project_dir/README.md" <<'EOF'
 
 ## 隱私
 
-所有設定與計時都在瀏覽器中執行，不送出，也沒有第三方分析程式。訓練模式、準備倒數、聲音與各模式的時間設定只記在本機瀏覽器的 `localStorage`，下次開啟時沿用。暫停中的訓練進度也只存在 `localStorage`，結束、重設或返回設定時清除。
+所有設定與計時都在瀏覽器中執行，不送出，也沒有第三方分析程式。訓練模式、準備倒數、聲音與各模式的時間設定只記在本機瀏覽器的 `localStorage`，下次開啟時沿用。暫停中的訓練進度也只存在 `localStorage`，結束、重設或返回設定時清除。App 下載提醒按「今日不再提醒我」時，只在 `localStorage` 記下當天日期。
 
 ## 本機開發
 

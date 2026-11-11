@@ -13,3 +13,13 @@ export function installPlatform({ userAgent = '', maxTouchPoints = 0 }) {
   if (/Android/.test(userAgent)) return 'android';
   return 'desktop';
 }
+
+export function localDateKey(date) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// 「今日不再提醒我」只擋到本機日期換日為止。
+export function appPromoVisible({ dismissedOn, now }) {
+  return dismissedOn !== localDateKey(now);
+}

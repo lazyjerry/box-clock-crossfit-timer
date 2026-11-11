@@ -36,6 +36,15 @@ function grantWakeLock() {
   Object.defineProperty(navigator, 'wakeLock', { value: { request: async () => sentinel } });
 }
 
+// 示範影片不錄 App 下載提醒：開頁前先寫入「今日不再提醒我」的日期。
+function skipAppPromo() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  try {
+    localStorage.setItem('box-clock-app-promo-dismissed', `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+  } catch {}
+}
+
 const wait = (page, ms) => page.waitForTimeout(ms);
 
 async function reveal(page, selector) {
@@ -216,6 +225,7 @@ async function record(browser, scene) {
   });
   await context.addInitScript(showTaps);
   await context.addInitScript(grantWakeLock);
+  await context.addInitScript(skipAppPromo);
   if (scene.format === 'mp4') await context.addInitScript(captureAudio);
   const page = await context.newPage();
   const openedAt = Date.now();

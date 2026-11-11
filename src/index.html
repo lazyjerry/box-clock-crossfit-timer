@@ -20,6 +20,7 @@
       <div class="status-pills" aria-label="應用程式狀態">
         <span class="status-pill"><i></i>OFFLINE READY</span>
         <button id="install-button" class="install-button" type="button" hidden>安裝 APP</button>
+        <a class="install-button app-link" href="https://boxclock-app.jlab-app.cloud/" target="_blank" rel="noopener">下載 APP</a>
       </div>
     </header>
 
@@ -378,6 +379,17 @@
           <li><strong>Safari（macOS Sonoma 以上）</strong>：選單列「檔案」→「加入 Dock」。</li>
           <li><strong>Firefox</strong>：不支援安裝，加入書籤即可。</li>
         </ul>
+      </form>
+    </dialog>
+    <dialog id="app-promo-dialog" class="help-dialog app-promo-dialog" aria-labelledby="app-promo-title">
+      <form method="dialog">
+        <div class="help-dialog-head"><h3 id="app-promo-title">BOX CLOCK 有 APP 了</h3><button class="help-close" type="submit" aria-label="關閉">×</button></div>
+        <p>iPhone 與 Android 都能下載 BOX CLOCK 原生 App，到 App Store 或 Google Play 安裝。</p>
+        <a id="app-promo-link" class="dialog-button app-promo-link" href="https://boxclock-app.jlab-app.cloud/" target="_blank" rel="noopener">前往下載 APP</a>
+        <div class="app-promo-actions">
+          <button id="app-promo-snooze" class="dialog-button ghost" type="button">今日不再提醒我</button>
+          <button class="dialog-button ghost" type="submit">關閉</button>
+        </div>
       </form>
     </dialog>
   </main>
